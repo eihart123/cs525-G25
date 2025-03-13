@@ -1,0 +1,13 @@
+{
+    "extends": "../tsc/tsconfig.lib.json",
+    "compilerOptions": {
+        "types": [
+            "node"
+        ]
+    },
+    "include": [
+        "**/*.ts",
+        "util/tools-path.d.cts"
+    ],
+    "references": []
+}
