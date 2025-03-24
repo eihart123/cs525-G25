@@ -73,10 +73,16 @@ def setup_server(conn, server, username):
 
     update_status(server, "Initializing")
 
-    # Install tmux and go
-    result = conn.sudo("dnf install -y tmux go", warn=True)
+    # Install tmux
+    result = conn.sudo("dnf install -y tmux", warn=True)
     if result.failed:
-        update_status(server, "Failed to install tmux and go")
+        update_status(server, "Failed to install tmux")
+        return
+
+    # Install node
+    result = conn.sudo("dnf module install -y nodejs:20/common", warn=True)
+    if result.failed:
+        update_status(server, "Failed to install node")
         return
 
     # Check if MP_DIR exists and create it if it doesn't
@@ -105,26 +111,10 @@ def setup_server(conn, server, username):
 
 def build_server(conn, server):
     """Build the server on the remote server"""
-    update_status(server, "Building")
-    result = conn.run(f"cd {REMOTE_SERVER_DIR} && /usr/bin/go build ./cmd/main.go", warn=True)
+    update_status(server, "Installing dependencies...")
+    result = conn.run(f"cd {REMOTE_SERVER_DIR} && /usr/bin/npm ci", warn=True)
     if result.failed:
-        update_status(server, "Failed to build")
-        return
-    result = conn.run(f"cd {REMOTE_SERVER_DIR} && /usr/bin/go build ./cmd/app1/grep_x.go", warn=True)
-    if result.failed:
-        update_status(server, "Failed to build")
-        return
-    result = conn.run(f"cd {REMOTE_SERVER_DIR} && /usr/bin/go build ./cmd/app1/objectid_signtype.go", warn=True)
-    if result.failed:
-        update_status(server, "Failed to build")
-        return
-    result = conn.run(f"cd {REMOTE_SERVER_DIR} && /usr/bin/go build ./cmd/app2/signpost_x.go", warn=True)
-    if result.failed:
-        update_status(server, "Failed to build")
-        return
-    result = conn.run(f"cd {REMOTE_SERVER_DIR} && /usr/bin/go build ./cmd/app2/count_category.go", warn=True)
-    if result.failed:
-        update_status(server, "Failed to build")
+        update_status(server, "Failed to install dependencies")
         return
 
 def start_server(conn, server):
