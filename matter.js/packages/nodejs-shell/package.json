@@ -1,0 +1,58 @@
+{
+    "name": "@matter/nodejs-shell",
+    "version": "0.0.0-git",
+    "description": "Shell app for Matter controller",
+    "keywords": [
+        "iot",
+        "home automation",
+        "matter",
+        "smart device"
+    ],
+    "license": "Apache-2.0",
+    "author": "matter.js authors",
+    "contributors": [
+        "Martin Turon <mturon@google.com>",
+        "Ingo Fischer <github@fischer-ka.de>"
+    ],
+    "bugs": {
+        "url": "https://github.com/project-chip/matter.js/issues"
+    },
+    "homepage": "https://github.com/project-chip/matter.js",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/project-chip/matter.js.git"
+    },
+    "scripts": {
+        "clean": "matter-build clean",
+        "build": "matter-build",
+        "build-clean": "matter-build --clean",
+        "shell": "matter-run src/app.ts"
+    },
+    "bin": {
+        "matter-shell": "dist/cjs/app.js"
+    },
+    "imports": {
+        "#general": "@matter/general",
+        "#types": "@matter/types"
+    },
+    "dependencies": {
+        "@matter/general": "*",
+        "@matter/nodejs": "*",
+        "@matter/nodejs-ble": "*",
+        "@matter/tools": "*",
+        "@project-chip/matter.js": "*",
+        "yargs": "^17.7.2"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "files": [
+        "dist/**/*",
+        "src/**/*",
+        "LICENSE",
+        "README.md"
+    ],
+    "publishConfig": {
+        "access": "public"
+    }
+}
