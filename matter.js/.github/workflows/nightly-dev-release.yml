@@ -1,0 +1,167 @@
+# This workflow automatically generates nightly release PRs if there were changes to the code
+name: Publish nightly dev releases
+
+on:
+  schedule:
+    - cron: 0 2 * * * # Every day at 02:00
+  workflow_dispatch: # Manually on demand
+    inputs:
+      versionBump:
+        description: 'Type of version bump'
+        required: true
+        default: 'prerelease'
+        type: choice
+        options:
+          - prerelease
+          - prepatch
+          - preminor
+          - premajor
+      skipChipTests:
+        description: 'Skip chip tests'
+        required: false
+        default: false
+        type: boolean
+jobs:
+  publish-config:
+    if: github.repository == 'project-chip/matter.js'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Fetch the history, or this action won't work
+
+    - name: Detect changes (git)
+      id: changes
+      run: |
+        # ===============================
+        # Detect changes using git
+        # ===============================
+
+        LAST_TAG=$(git describe --abbrev=0 --tags)
+        echo "Checking for changes since last tag $LAST_TAG"
+
+        # Figure out if anything changed in the package directories
+        CHANGES=$(git diff "$LAST_TAG" --name-only | grep -E "^packages\/" || true)
+        if [ -z "$CHANGES" ] ; then
+          echo "🔸 No package changes since latest version, aborting..."
+          echo "result=unchanged" >> $GITHUB_OUTPUT
+        else
+          echo "result=ok" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Prepare testing environment
+      if: steps.changes.outputs.result == 'ok'
+      uses: ./.github/actions/prepare-env
+
+    - name: Prepare Webbrowser testing environment
+      if: steps.changes.outputs.result == 'ok'
+      uses: ./.github/actions/prepare-webtests
+
+    - name: Execute tests
+      if: steps.changes.outputs.result == 'ok'
+      run: npm run test
+
+    - name: Prepare chip tests
+      if: ${{ steps.changes.outputs.result == 'ok' && !inputs.skipChipTests }}
+      uses: ./.github/actions/prepare-chip-testing
+      with:
+        build-matter-js: "false"
+        patch-test-yaml: "true"
+
+    - name: chip-tool-test execution
+      if: ${{ steps.changes.outputs.result == 'ok' && !inputs.skipChipTests }}
+      id: test-execution
+      shell: bash
+      run: |
+        cd connectedhomeip
+        ./scripts/run_in_build_env.sh  \
+          './scripts/tests/run_test_suite.py \
+            --runner chip_tool_python \
+            --chip-tool ../bin/chip-tool \
+            --log-level info \
+            --target-glob "{Test_TC_ACE_*,Test_TC_ACL_*,Test_AddNewFabricFromExistingFabric,Test_TC_APBSC_*,Test_TC_BINFO_*,Test_TC_BOOL_*,Test_TC_BRBINFO_*,Test_TC_CADMIN_*,Test_TC_CC_*,Test_TC_CGEN_*,Test_TC_CNET_*,Test_TC_DGGEN_*,Test_TC_DESC_*,Test_TC_FLABEL_*,Test_TC_FLW_*,Test_TC_I_*,Test_TC_LCFG_*,Test_TC_LOWPOWER_*,Test_TC_LTIME_*,Test_TC_LUNIT_*,Test_TC_LVL_*,Test_TC_MOD_*,Test_TC_OCC_*,Test_TC_OO_*,Test_TC_OPCREDS_*,Test_TC_PCC_*,Test_TC_PRS_*,Test_TC_PS_*,Test_TC_RH_*,Test_TC_SWTCH_*,Test_TC_TMP_*,Test_TC_TSUIC_*,Test_TC_ULABEL_*,Test_TC_WAKEONLAN_*,Test_TV_WNCV_*,TestAccessControlC*,TestArmFailSafe,TestCASERecovery,TestCommandsById,TestCommissioningWindow,TestFabricRemovalWhileSubscribed,TestGeneralCommissioning,TestMultiAdmin,TestOperationalCredentialsCluster,TestSelfFabricRemoval,TestSubscribe_*,TestUserLabelCluster,TestDiscovery}" \
+              --target-skip-glob "{Test_TC_ACE_1_6,Test_TC_LVL_9_1,Test_TC_OO_2_7,Test_TC_LVL_9_1,Test_TC_CC_3_2,Test_TC_CC_3_3,Test_TC_CC_4_3,Test_TC_CC_5_3,Test_TC_CC_6_3,Test_TC_CC_7_3}" \
+            run \
+            --iterations 1 \
+            --all-clusters-app ../chip-testing/dist/esm/AllClustersTestApp.js \
+            --bridge-app ../chip-testing/dist/esm/BridgeTestApp.js \
+            --tv-app ../chip-testing/dist/esm/TvTestApp.js \
+          '
+
+    - name: Cleanup chip tests
+      if: ${{ steps.changes.outputs.result == 'ok' && !inputs.skipChipTests }}
+      id: cleanup-chip-tests
+      shell: bash
+      run: |
+        rm -rf connectedhomeip
+
+    - name: Determine the version bump
+      if: steps.changes.outputs.result == 'ok'
+      env:
+        VERSION_BUMP: ${{ inputs.versionBump }}
+      id: version
+      uses: actions/github-script@v7
+      with:
+        result-encoding: string
+        script: |
+          const semver = require("semver");
+          const fs = require("fs");
+          const now = new Date();
+          const today = new Date(now.getTime() - now.getTimezoneOffset()*60000);
+          const dateStr = today.toISOString().split("T")[0].replace(/-/g, "");
+          const sha = require("child_process").execSync("git rev-parse --short HEAD").toString("utf8").trim();
+
+          const prevVersion = fs.readFileSync(`${process.env.GITHUB_WORKSPACE}/version.txt`, "utf8");
+
+          const parsed = semver.parse(prevVersion);
+          const prereleaseIdentifier = parsed.prerelease[0] || "alpha";
+
+          for (let i = 1; i < parsed.prerelease.length; i++) {
+            const part = parsed.prerelease[i];
+            if (typeof part === "number") {
+              continue;
+            }
+            // Parse stuff like `8-20210909-001a711c` back to `8`
+            const numeric = parseInt(part);
+            if (!Number.isNaN(numeric)) {
+              parsed.prerelease[i] = numeric;
+            }
+          }
+
+          // Figure out the next version
+          const versionBump = process.env.VERSION_BUMP || "prerelease";
+          return `${semver.inc(parsed, versionBump, prereleaseIdentifier)}-${dateStr}-${sha}`;
+
+    - name: Bump version locally
+      if: steps.changes.outputs.result == 'ok'
+      env:
+        VERSION: ${{ steps.version.outputs.result }}
+      run: |        
+        git config --global user.email "github-automation@fischer-ka.de"
+        git config --global user.name "Github Action"
+        
+        npm run version -- --set ${VERSION}
+        git add version.txt
+        git commit -m "v${VERSION}"
+
+    - name: Create Pull Request
+      if: steps.changes.outputs.result == 'ok'
+      id: cpr
+      uses: peter-evans/create-pull-request@v7
+      with:
+        token: ${{ secrets.PR_TOKEN }}
+        commit-message: "[NIGHTLY DEV RELEASE] ${{ steps.version.outputs.result }}"
+        committer: Automator77 <github-automation@fischer-ka.de>
+        author: Automator77 <github-automation@fischer-ka.de>
+        signoff: false
+        branch: nightly-release
+        delete-branch: true
+        title: "[NIGHTLY DEV RELEASE] ${{ steps.version.outputs.result }}"
+        body: |
+          Update version by nightly dev release
+        labels: |
+          automated pr
+        assignees: Automator77
+        draft: false
