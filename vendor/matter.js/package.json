@@ -62,5 +62,9 @@
   },
   "overrides": {
     "brorand": "npm:@matter.js/brorand@1.1.0"
+  },
+  "dependencies": {
+    "react-native-ble-plx": "^3.5.0",
+    "react-native-quick-crypto": "^0.7.12"
   }
 }

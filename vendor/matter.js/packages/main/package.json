@@ -46,7 +46,9 @@
         "@matter/node": "*",
         "@matter/protocol": "*",
         "@matter/types": "*",
-        "@noble/curves": "^1.8.1"
+        "@noble/curves": "^1.8.1",
+        "@stoprocent/bleno": "^0.8.5",
+        "@stoprocent/noble": "^1.19.1"
     },
     "optionalDependencies": {
         "@matter/nodejs": "*"
