@@ -206,7 +206,13 @@ async function getConfiguration() {
     const numDevices = environment.vars.number("num") || 2;
     if (await deviceStorage.has("isSocket")) {
         console.log(`Device types found in storage. --type parameter is ignored.`);
-        (await deviceStorage.get<Array<boolean>>("isSocket")).forEach(type => isSocket.push(type));
+        // (await deviceStorage.get<Array<boolean>>("isSocket")).forEach(type => isSocket.push(type));
+        const storedValue = await deviceStorage.get<Array<boolean>>("isSocket");
+        if (Array.isArray(storedValue)) {
+            storedValue.forEach(type => isSocket.push(type));
+        } else {
+            console.error(`Expected an array for "isSocket", but got:`, storedValue);
+        }
     }
     for (let i = 1; i <= numDevices; i++) {
         if (isSocket[i - 1] !== undefined) continue;
