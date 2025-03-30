@@ -5,6 +5,7 @@
  */
 
 /*** THIS FILE IS GENERATED, DO NOT EDIT ***/
+/* CS 525 G25 */
 
 import { PartsBehavior } from "../behavior/system/parts/PartsBehavior.js";
 import { IndexBehavior } from "../behavior/system/index/IndexBehavior.js";
@@ -13,6 +14,9 @@ import { IdentifyServer as BaseIdentifyServer } from "../behaviors/identify/Iden
 import {
     CommissionerControlServer as BaseCommissionerControlServer
 } from "../behaviors/commissioner-control/CommissionerControlServer.js";
+import {
+    AggregatedStatsServer as BaseAggregatedStatsServer
+} from "../behaviors/aggregated-stats/AggregatedStatsServer.js";
 import { MutableEndpoint } from "../endpoint/type/MutableEndpoint.js";
 import { SupportedBehaviors } from "../endpoint/properties/SupportedBehaviors.js";
 import { Identity } from "#general";
@@ -55,11 +59,19 @@ export namespace AggregatorRequirements {
     export const CommissionerControlServer = BaseCommissionerControlServer;
 
     /**
+     * The AggregatedStats cluster is optional per the extended custom CS 525 Matter specification.
+     *
+     * We provide this alias to the default implementation {@link AggregatedStatsServer}
+     * for convenience.
+     */
+    export const AggregatedStatsServer = BaseAggregatedStatsServer;
+
+    /**
      * An implementation for each server cluster supported by the endpoint per the Matter specification.
      */
     export const server = {
         mandatory: { Parts: PartsBehavior, Index: IndexBehavior },
-        optional: { Actions: ActionsServer, Identify: IdentifyServer, CommissionerControl: CommissionerControlServer }
+        optional: { Actions: ActionsServer, Identify: IdentifyServer, CommissionerControl: CommissionerControlServer, AggregatedStats: AggregatedStatsServer }
     };
 }
 
