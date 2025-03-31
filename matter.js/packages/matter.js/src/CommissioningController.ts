@@ -208,6 +208,10 @@ export class CommissioningController {
         return { mdnsScanner: this.#mdnsScanner, storage: this.#storage, environment: this.#environment };
     }
 
+    get controllerInstance() {
+        return this.#controllerInstance;
+    }
+
     #assertControllerIsStarted(errorText?: string) {
         if (this.#controllerInstance === undefined) {
             throw new ImplementationError(

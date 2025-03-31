@@ -12,7 +12,8 @@
  */
 
 import { Environment, Logger, singleton, StorageService, Time } from "@matter/main";
-import { BasicInformationCluster, DescriptorCluster, GeneralCommissioning, OnOff } from "@matter/main/clusters";
+import { BasicInformationCluster, DescriptorCluster, GeneralCommissioning, OnOff, TemperatureMeasurement } from "@matter/main/clusters";
+
 import { Ble, ClusterClientObj, ControllerCommissioningFlowOptions } from "@matter/main/protocol";
 import { ManualPairingCodeCodec, NodeId } from "@matter/main/types";
 import { NodeJsBle } from "@matter/nodejs-ble";
@@ -20,6 +21,7 @@ import { CommissioningController, NodeCommissioningOptions } from "@project-chip
 import { NodeStates } from "@project-chip/matter.js/device";
 
 const logger = Logger.get("Controller");
+const numDevices = 100; // Number of devices to commission
 
 const environment = Environment.default;
 
@@ -42,6 +44,7 @@ logger.info(
 
 class ControllerNode {
     async start() {
+        Logger.level = "info";
         logger.info(`node-matter Controller started`);
 
         /**
@@ -72,7 +75,7 @@ class ControllerNode {
         await controllerStorage.set("fabriclabel", adminFabricLabel);
 
         const pairingCode = environment.vars.string("pairingcode");
-        let longDiscriminator, setupPin, shortDiscriminator;
+        let longDiscriminator: number | undefined, setupPin, shortDiscriminator;
         if (pairingCode !== undefined) {
             const pairingCodeCodec = ManualPairingCodeCodec.decode(pairingCode);
             shortDiscriminator = pairingCodeCodec.shortDiscriminator;
@@ -82,7 +85,7 @@ class ControllerNode {
         } else {
             longDiscriminator =
                 environment.vars.number("longDiscriminator") ??
-                (await controllerStorage.get("longDiscriminator", 3840));
+                (await controllerStorage.get("longDiscriminator", 10));
             if (longDiscriminator > 4095) throw new Error("Discriminator value must be less than 4096");
             setupPin = environment.vars.number("pin") ?? (await controllerStorage.get("pin", 20202021));
         }
@@ -130,19 +133,25 @@ class ControllerNode {
             autoConnect: false, // Do not auto connect to the commissioned nodes
             adminFabricLabel,
         });
-
+        
         /** Start the Matter Controller Node */
         await commissioningController.start();
-
+        
+        console.log(
+          commissioningController.controllerInstance?.exchangeManager.transmissionMetadata
+        )
         // When we do not have a commissioned node we need to commission the device provided by CLI parameters
         if (!commissioningController.isCommissioned()) {
+          // Map to options
+          var myList: Array<NodeCommissioningOptions> = [];
+          for (var i = 0; i < numDevices; i++) {
             const options: NodeCommissioningOptions = {
                 commissioning: commissioningOptions,
                 discovery: {
                     knownAddress: ip !== undefined && port !== undefined ? { ip, port, type: "udp" } : undefined,
                     identifierData:
                         longDiscriminator !== undefined
-                            ? { longDiscriminator }
+                            ? { longDiscriminator: longDiscriminator + i }
                             : shortDiscriminator !== undefined
                               ? { shortDiscriminator }
                               : {},
@@ -152,10 +161,19 @@ class ControllerNode {
                 },
                 passcode: setupPin,
             };
-            logger.info(`Commissioning ... ${Logger.toJSON(options)}`);
-            const nodeId = await commissioningController.commissionNode(options);
+            myList.push(options);
+          }
 
+          // Measure commissioning time
+          // Commission the node using the options
+          const startTime = Date.now();
+          await Promise.all(myList.map(async (options) => {
+            const nodeId = await commissioningController.commissionNode(options);
             console.log(`Commissioning successfully done with nodeId ${nodeId}`);
+          }))
+          const endTime = Date.now();
+          const commissioningTime = endTime - startTime;
+          logger.info(`Commissioning completed in ${commissioningTime}ms`);
         }
 
         // After commissioning or if we have a commissioned node we can connect to it
@@ -258,9 +276,31 @@ class ControllerNode {
 
             const devices = node.getDevices();
             for (const device of devices) {
-                console.log(`Device ${device.number} found with type: ${device.type}`);
-                const clients = device.getAllClusterClients();
-                console.log(clients);
+                console.log(`Device ${device.number} found with type: ${device.deviceType}`);
+                // const clients = device.getAllClusterClients();
+                // console.log(clients);
+                const temperatureMeasurement = device.getClusterClient(TemperatureMeasurement.Complete);
+                if (!temperatureMeasurement) {
+                    console.log(`Device ${device.number} does not support Temperature Measurement`);
+                    continue; // Skip if Temperature Measurement is not supported
+                }
+                // console.log(temperatureMeasurement)
+                temperatureMeasurement.addMeasuredValueAttributeListener((value: number | null) => {
+                    // This listener will be called whenever the measured value changes
+                    console.log(`Device ${device.number} Temperature Measurement changed to: ${value}`);
+                })
+                const minInterval = 1
+                const maxInterval = 10
+                await temperatureMeasurement.subscribeMeasuredValueAttribute((value: number | null) => {
+                  console.log(`Device ${device.number} Temperature Measurement subscription to: ${value}`);
+                  console.log(
+                    commissioningController.controllerInstance?.exchangeManager.transmissionMetadata
+                  )
+                }, minInterval, maxInterval)
+                // attributes.measuredValue
+                // getMeasuredValueAttribute
+                // subscribeMeasuredValueAttribute
+                // endpointId
                 // if (temperatureMeasurement) {
                 //     // Example to get the measuredValue from TemperatureMeasurement cluster
                 //     const measuredValue = await temperatureMeasurement.getMeasuredValueAttribute();

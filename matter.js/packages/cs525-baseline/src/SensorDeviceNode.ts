@@ -11,15 +11,31 @@
  * This example is CJS conform and do not use top level await's.
  */
 
-import { Endpoint, EndpointServer, Environment, ServerNode, StorageService, Time } from "@matter/main";
+import { Endpoint, EndpointServer, Environment, LogDestination, ServerNode, StorageService, Time } from "@matter/main";
 import { TemperatureSensorDevice } from "@matter/main/devices/temperature-sensor";
 import { logEndpoint } from "@matter/main/protocol";
 import { DeviceTypeId, VendorId } from "@matter/main/types";
 import { execSync } from "node:child_process";
+import { LogLevel, Logger, singleton } from "@matter/main";
+import { exit } from "node:process";
 
 async function main() {
+    const deviceID = process.env.DEVICE_ID;
+    console.log({ deviceID });
+    if (deviceID === undefined) {
+        // Exit if DEVICE_ID is not provided
+        console.error("DEVICE_ID environment variable is not set. Please set it to a valid device ID.");
+        return;
+        // Alternatively you could fallback to a default value or handle it differently
+        // const deviceID = '1'; // Fallback to a default device ID
+    }
     /** Initialize configuration values */
-    const deviceID = '1';
+    console.log("Initializing configuration...");
+    Logger.level = "info";
+    // logger.level = LogLevel.NOTICE; // Set the log level for the logger to INFO
+    // logger.info("Hi there")
+    // Logger.setDefaultLoglevelForLogger("EndpointStructureLogger", LogLevel.INFO); // Set the default log level for the MatterNode logger
+    // Logger.get("EndpointStructureLogger").setLevel(LogLevel.INFO); // Set the log level for the endpoint structure logger
     const {
         interval,
         deviceName,
@@ -32,7 +48,6 @@ async function main() {
         port,
         uniqueId,
     } = await getConfiguration(deviceID);
-
     /**
      * Create a Matter ServerNode, which contains the Root Endpoint and all relevant data and configuration
      */
@@ -96,7 +111,7 @@ async function main() {
     /**
      * Log the endpoint structure for debugging reasons and to allow to verify anything is correct
      */
-    logEndpoint(EndpointServer.forEndpoint(server));
+    // logEndpoint(EndpointServer.forEndpoint(server));
 
     const updateInterval = setInterval(() => {
         endpoint.set({
@@ -168,17 +183,18 @@ async function getConfiguration(deviceID: string) {
         console.log(`Invalid Interval ${interval}, set to 60s`);
         interval = 60;
     }
+    console.log(`Update interval set to ${interval} seconds`); // Log the interval for debugging
 
     const deviceName = `Matter test device #${deviceID}`;
     const vendorName = "matter-node.js";
     const passcode = environment.vars.number("passcode") ?? (await deviceStorage.get("passcode", 20202021));
-    const discriminator = environment.vars.number("discriminator") ?? (await deviceStorage.get("discriminator", 3840));
+    const discriminator = environment.vars.number("discriminator") ?? (await deviceStorage.get("discriminator", 0 + parseInt(deviceID, 10)));
     // product name / id and vendor id should match what is in the device certificate
     const vendorId = environment.vars.number("vendorid") ?? (await deviceStorage.get("vendorid", 0xfff1));
     const productName = `node-matter OnOff Temperature`;
     const productId = environment.vars.number("productid") ?? (await deviceStorage.get("productid", 0x8000));
 
-    const port = environment.vars.number("port") ?? 5540;
+    const port = environment.vars.number("port") ?? 46000 + parseInt(deviceID, 10);
 
     const uniqueId =
         environment.vars.string("uniqueid") ?? (await deviceStorage.get("uniqueid", Time.nowMs().toString()));

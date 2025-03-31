@@ -242,7 +242,7 @@ export class MatterController {
     readonly sessionManager: SessionManager;
     private readonly netInterfaces = new NetInterfaceSet();
     private readonly channelManager = new ChannelManager(CONTROLLER_CONNECTIONS_PER_FABRIC_AND_NODE);
-    private readonly exchangeManager: ExchangeManager;
+    /* private */ readonly exchangeManager: ExchangeManager;
     private readonly peers: PeerSet;
     private readonly clients: InteractionClientProvider;
     private readonly commissioner: ControllerCommissioner;

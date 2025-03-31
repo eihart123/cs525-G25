@@ -118,6 +118,7 @@ export class ExchangeManager {
     readonly #listeners = new Map<TransportInterface, TransportInterface.Listener>();
     readonly #closers = new Set<Promise<void>>();
     readonly #observers = new ObserverGroup(this);
+    transmissionMetadata : Record<string, number> = {};
     #closing = false;
 
     constructor(context: ExchangeManagerContext) {
@@ -200,6 +201,7 @@ export class ExchangeManager {
     }
 
     private async onMessage(channel: Channel<Uint8Array>, messageBytes: Uint8Array) {
+        this.transmissionMetadata[channel.name] = (this.transmissionMetadata[channel.name] || 0) + messageBytes.length;
         const packet = MessageCodec.decodePacket(messageBytes);
 
         if (packet.header.sessionType === SessionType.Group)
