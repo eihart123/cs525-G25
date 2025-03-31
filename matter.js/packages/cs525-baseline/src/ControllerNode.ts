@@ -257,33 +257,45 @@ class ControllerNode {
             //console.log("Attributes-BasicInformation:", JSON.stringify(attributesBasicInformation, null, 2));
 
             const devices = node.getDevices();
-            if (devices[0] && devices[0].number === 1) {
-                // Example to subscribe to all Attributes of endpoint 1 of the commissioned node: */*/*
-                //await interactionClient.subscribeMultipleAttributes([{ endpointId: 1, /* subscribe anything from endpoint 1 */ }], 0, 180, data => {
-                //    console.log("Subscribe-All Data:", Logger.toJSON(data));
-                //});
-
-                const onOff: ClusterClientObj<OnOff.Complete> | undefined = devices[0].getClusterClient(OnOff.Complete);
-                if (onOff !== undefined) {
-                    let onOffStatus = await onOff.getOnOffAttribute();
-                    console.log("initial onOffStatus", onOffStatus);
-
-                    onOff.addOnOffAttributeListener(value => {
-                        console.log("subscription onOffStatus", value);
-                        onOffStatus = value;
-                    });
-                    // read data every minute to keep up the connection to show the subscription is working
-                    setInterval(() => {
-                        onOff
-                            .toggle()
-                            .then(() => {
-                                onOffStatus = !onOffStatus;
-                                console.log("onOffStatus", onOffStatus);
-                            })
-                            .catch(error => logger.error(error));
-                    }, 60000);
-                }
+            for (const device of devices) {
+                console.log(`Device ${device.number} found with type: ${device.type}`);
+                const clients = device.getAllClusterClients();
+                console.log(clients);
+                // if (temperatureMeasurement) {
+                //     // Example to get the measuredValue from TemperatureMeasurement cluster
+                //     const measuredValue = await temperatureMeasurement.getMeasuredValueAttribute();
+                //     console.log(`Device ${device.number} Temperature Measurement: ${measuredValue}`);
+                // } else {
+                //     console.log(`Device ${device.number} does not support Temperature Measurement`);
+                // }
             }
+            // if (devices[0] && devices[0].number === 1) {
+            //     // Example to subscribe to all Attributes of endpoint 1 of the commissioned node: */*/*
+            //     //await interactionClient.subscribeMultipleAttributes([{ endpointId: 1, /* subscribe anything from endpoint 1 */ }], 0, 180, data => {
+            //     //    console.log("Subscribe-All Data:", Logger.toJSON(data));
+            //     //});
+
+            //     const onOff: ClusterClientObj<OnOff.Complete> | undefined = devices[0].getClusterClient(OnOff.Complete);
+            //     if (onOff !== undefined) {
+            //         let onOffStatus = await onOff.getOnOffAttribute();
+            //         console.log("initial onOffStatus", onOffStatus);
+
+            //         onOff.addOnOffAttributeListener(value => {
+            //             console.log("subscription onOffStatus", value);
+            //             onOffStatus = value;
+            //         });
+            //         // read data every minute to keep up the connection to show the subscription is working
+            //         setInterval(() => {
+            //             onOff
+            //                 .toggle()
+            //                 .then(() => {
+            //                     onOffStatus = !onOffStatus;
+            //                     console.log("onOffStatus", onOffStatus);
+            //                 })
+            //                 .catch(error => logger.error(error));
+            //         }, 60000);
+            //     }
+            // }
         } finally {
             //await matterServer.close(); // Comment out when subscribes are used, else the connection will be closed
             setTimeout(() => process.exit(0), 1000000);

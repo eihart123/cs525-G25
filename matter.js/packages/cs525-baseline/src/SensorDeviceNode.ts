@@ -12,7 +12,6 @@
  */
 
 import { Endpoint, EndpointServer, Environment, ServerNode, StorageService, Time } from "@matter/main";
-import { HumiditySensorDevice } from "@matter/main/devices/humidity-sensor";
 import { TemperatureSensorDevice } from "@matter/main/devices/temperature-sensor";
 import { logEndpoint } from "@matter/main/protocol";
 import { DeviceTypeId, VendorId } from "@matter/main/types";
@@ -22,7 +21,6 @@ async function main() {
     /** Initialize configuration values */
     const deviceID = '1';
     const {
-        isTemperature,
         interval,
         deviceName,
         vendorName,
@@ -59,9 +57,7 @@ async function main() {
         // Optional: If Ommitted some development defaults are used
         productDescription: {
             name: deviceName,
-            deviceType: DeviceTypeId(
-                isTemperature ? TemperatureSensorDevice.deviceType : HumiditySensorDevice.deviceType,
-            ),
+            deviceType: DeviceTypeId(TemperatureSensorDevice.deviceType),
         },
 
         // Provide defaults for the BasicInformation cluster on the Root endpoint
@@ -85,26 +81,15 @@ async function main() {
      * In this case we directly use the default command implementation from matter.js. Check out the DeviceNodeFull example
      * to see how to customize the command handlers.
      */
-    let endpoint: Endpoint<TemperatureSensorDevice | HumiditySensorDevice>;
-    if (isTemperature) {
-        endpoint = new Endpoint(TemperatureSensorDevice, {
-            id: "tempsensor",
-            temperatureMeasurement: {
-                // Use this to initialize the measuredValue with the most uptodate value.
-                // If you do not know the value and also cannot request it, best use "null" (if allowed by the cluster).
-                measuredValue: getIntValueFromCommandOrRandom("value"),
-            },
-        });
-    } else {
-        endpoint = new Endpoint(HumiditySensorDevice, {
-            id: "humsensor",
-            relativeHumidityMeasurement: {
-                // Use this to initialize the measuredValue with the most uptodate value.
-                // If you do not know the value and also cannot request it, best use "null" (if allowed by the cluster).
-                measuredValue: getIntValueFromCommandOrRandom("value", false),
-            },
-        });
-    }
+    let endpoint: Endpoint<TemperatureSensorDevice>;
+    endpoint = new Endpoint(TemperatureSensorDevice, {
+        id: "tempsensor", // ID of the endpoint -- AFAIK this does not need to be unique.
+        temperatureMeasurement: {
+            // Use this to initialize the measuredValue with the most uptodate value.
+            // If you do not know the value and also cannot request it, best use "null" (if allowed by the cluster).
+            measuredValue: getIntValueFromCommandOrRandom("value"),
+        },
+    });
 
     await server.add(endpoint);
 
@@ -114,21 +99,11 @@ async function main() {
     logEndpoint(EndpointServer.forEndpoint(server));
 
     const updateInterval = setInterval(() => {
-        let setter: Promise<void>;
-        if (isTemperature) {
-            setter = endpoint.set({
-                temperatureMeasurement: {
-                    measuredValue: getIntValueFromCommandOrRandom("value"),
-                },
-            });
-        } else {
-            setter = endpoint.set({
-                relativeHumidityMeasurement: {
-                    measuredValue: getIntValueFromCommandOrRandom("value", false),
-                },
-            });
-        }
-        setter.catch(error => console.error("Error updating measured value:", error));
+        endpoint.set({
+            temperatureMeasurement: {
+                measuredValue: getIntValueFromCommandOrRandom("value"),
+            },
+        }).catch(error => console.error("Error updating measured value:", error));
     }, interval * 1000);
 
     // Cleanup our update interval when node goes offline
@@ -152,9 +127,10 @@ main().catch(error => console.error(error));
 
 function getIntValueFromCommandOrRandom(scriptParamName: string, allowNegativeValues = true) {
     const script = Environment.default.vars.string(scriptParamName);
+    // By default, gets a random number between -50 and 50 if no script is provided
     if (script === undefined) {
         if (!allowNegativeValues) return Math.round(Math.random() * 100);
-        return (Math.round(Math.random() * 100) - 50) * 100;
+        return (Math.round(Math.random() * 100) - 50);
     }
     let result = execSync(script).toString().trim();
     if ((result.startsWith("'") && result.endsWith("'")) || (result.startsWith('"') && result.endsWith('"')))
@@ -180,30 +156,26 @@ async function getConfiguration(deviceID: string) {
     const storageService = environment.get(StorageService);
     console.log(storageService)
     console.log(`Storage location: ${storageService.location} (Directory)`);
+    // This environment variable is used by StorageService
     console.log(
         'Use the parameter "--storage-path=NAME-OR-PATH" to specify a different storage location in this directory, use --storage-clear to start with an empty storage.',
     );
     const deviceStorage = (await storageService.open(`device-${deviceID}`)).createContext("data");
 
-    const isTemperature = await deviceStorage.get("isTemperature", environment.vars.get("type") !== "humidity");
-    if (await deviceStorage.has("isTemperature")) {
-        console.log(
-            `Device type ${isTemperature ? "temperature" : "humidity"} found in storage. --type parameter is ignored.`,
-        );
-    }
+    // How often to update the measured value in seconds
     let interval = environment.vars.number("interval") ?? (await deviceStorage.get("interval", 60));
     if (interval < 1) {
         console.log(`Invalid Interval ${interval}, set to 60s`);
         interval = 60;
     }
 
-    const deviceName = `Matter test device #${deviceID} (${isTemperature ? "Temperature" : "Humidity"})`;
+    const deviceName = `Matter test device #${deviceID}`;
     const vendorName = "matter-node.js";
     const passcode = environment.vars.number("passcode") ?? (await deviceStorage.get("passcode", 20202021));
     const discriminator = environment.vars.number("discriminator") ?? (await deviceStorage.get("discriminator", 3840));
     // product name / id and vendor id should match what is in the device certificate
     const vendorId = environment.vars.number("vendorid") ?? (await deviceStorage.get("vendorid", 0xfff1));
-    const productName = `node-matter OnOff ${isTemperature ? "Temperature" : "Humidity"}`;
+    const productName = `node-matter OnOff Temperature`;
     const productId = environment.vars.number("productid") ?? (await deviceStorage.get("productid", 0x8000));
 
     const port = environment.vars.number("port") ?? 5540;
@@ -218,12 +190,10 @@ async function getConfiguration(deviceID: string) {
         vendorid: vendorId,
         productid: productId,
         interval,
-        isTemperature,
         uniqueid: uniqueId,
     });
 
     return {
-        isTemperature,
         interval,
         deviceName,
         vendorName,
