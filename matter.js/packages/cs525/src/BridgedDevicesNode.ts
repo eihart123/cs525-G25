@@ -16,8 +16,10 @@ import { Endpoint, EndpointServer, ServerNode } from "@matter/node";
 // BridgedDeviceBasicInformationServer, OnOffLightDevice, OnOffPlugInUnitDevice, 
 // "#endpoints/*": "./src/endpoints/*.js",
 import { AggregatorEndpoint } from "@matter/node/endpoints/aggregator";
+import { AggregatedStatsServer } from "@matter/node/behaviors/aggregated-stats";
 import { BridgedDeviceBasicInformationServer } from "@matter/node/behaviors/bridged-device-basic-information";
-import { OnOffLightDevice, OnOffPlugInUnitDevice } from "@matter/main/devices"
+// import { OnOffLightDevice, OnOffPlugInUnitDevice } from "@matter/main/devices"
+import { TemperatureSensorDevice } from "@matter/main/devices";
 
 import { Environment } from "@matter/general";
 import { StorageService, Time } from "@matter/general";
@@ -25,8 +27,10 @@ import { VendorId } from "@matter/types";
 // import { logEndpoint } from "#main/protocol";
 import { execSync } from "node:child_process";
 
+const NUM_TEMPERATURE_SENSORS = 5;
+
 /** Initialize configuration values */
-const { isSocket, deviceName, vendorName, passcode, discriminator, vendorId, productName, productId, port, uniqueId } =
+const { deviceName, vendorName, passcode, discriminator, vendorId, productName, productId, port, uniqueId } =
     await getConfiguration();
 
 /**
@@ -80,22 +84,18 @@ const server = await ServerNode.create({
  * to see how to customize the command handlers.
  */
 
-const aggregator = new Endpoint(AggregatorEndpoint, { id: "aggregator" });
+const aggregator = new Endpoint(AggregatorEndpoint.with(AggregatedStatsServer), { id: "aggregator" });
 await server.add(aggregator);
 
-for (let idx = 0; idx < isSocket.length; idx++) {
+for (let idx = 0; idx < NUM_TEMPERATURE_SENSORS; idx++) {
     const i = idx + 1;
-    const isASocket = isSocket[idx]; // Is the Device we add a Socket or a Light?
 
-    const name = `OnOff ${isASocket ? "Socket" : "Light"} ${i}`;
+    const name = `TemperatureSensor ${i}`;
 
     const endpoint = new Endpoint(
-        isASocket
-            ? // For a Bridged Device we need to add a BridgedDeviceBasicInformation cluster as server
-              OnOffPlugInUnitDevice.with(BridgedDeviceBasicInformationServer)
-            : OnOffLightDevice.with(BridgedDeviceBasicInformationServer),
+        TemperatureSensorDevice.with(BridgedDeviceBasicInformationServer),
         {
-            id: `onoff-${i}`,
+            id: `tempsensor-${i}`,
             bridgedDeviceBasicInformation: {
                 nodeLabel: name, // Main end user name for the device
                 productName: name,
@@ -121,11 +121,45 @@ for (let idx = 0; idx < isSocket.length; idx++) {
         console.log(`Stop identify logic for ${name} ...`);
     });
 
-    endpoint.events.onOff.onOff$Changed.on(value => {
-        executeCommand(value ? `on${i}` : `off${i}`);
-        console.log(`${name} is now ${value ? "ON" : "OFF"}`);
+    endpoint.events.temperatureMeasurement.measuredValue$Changed.on(value => {
+        console.log(`Temperature for ${name} is now ${value}°C`);
     });
 }
+
+// check if the aggregatedstats server can list parts
+// console.log(aggregator.behaviors());
+// aggregator.behaviors.AggregatedStatsServer.listParts();
+console.log("Logging parts:");
+aggregator.parts.forEach(part => {
+    console.log(part);
+});
+
+const aggregatedStatsServer = aggregator.behaviors.supported.aggregatedStats;
+if (aggregatedStatsServer) {
+    console.log("AggregatedStatsServer is supported!");
+    console.log(aggregatedStatsServer);
+    // aggregatedStatsServer.clear();
+    // aggregatedStatsServer.listParts();
+}
+
+// await measuredSocketEndpoint.act(agent =>
+//     agent.get(ElectricalEnergyMeasurementServer).setMeasurement({
+//         cumulativeEnergy: {
+//             imported: {
+//                 energy: energy * 1000,
+//             },
+//         },
+//     }),
+// );
+
+aggregator.act(agent => {
+    agent.get(AggregatedStatsServer).subscribeToAllParts();
+    // agent.get(AggregatedStatsServer).clear();
+});
+
+// Get the value of averageTemperatureValue
+
+aggregator.a
 
 /**
  * In order to start the node and announce it into the network we use the run method which resolves when the node goes
@@ -176,13 +210,6 @@ await server.start();
  * Convenience Methods
  *********************************************************************************************************/
 
-/** Defined a shell command from an environment variable and execute it and log the response. */
-function executeCommand(scriptParamName: string) {
-    const script = Environment.default.vars.string(scriptParamName);
-    if (script === undefined) return undefined;
-    console.log(`${scriptParamName}: ${execSync(script).toString().slice(0, -1)}`);
-}
-
 async function getConfiguration() {
     /**
      * Collect all needed data
@@ -202,30 +229,14 @@ async function getConfiguration() {
     );
     const deviceStorage = (await storageService.open("device")).createContext("data");
 
-    const isSocket = Array<boolean>();
-    const numDevices = environment.vars.number("num") || 2;
-    if (await deviceStorage.has("isSocket")) {
-        console.log(`Device types found in storage. --type parameter is ignored.`);
-        // (await deviceStorage.get<Array<boolean>>("isSocket")).forEach(type => isSocket.push(type));
-        const storedValue = await deviceStorage.get<Array<boolean>>("isSocket");
-        if (Array.isArray(storedValue)) {
-            storedValue.forEach(type => isSocket.push(type));
-        } else {
-            console.error(`Expected an array for "isSocket", but got:`, storedValue);
-        }
-    }
-    for (let i = 1; i <= numDevices; i++) {
-        if (isSocket[i - 1] !== undefined) continue;
-        isSocket.push(environment.vars.string(`type${i}`) === "socket");
-    }
-
-    const deviceName = "Matter test device";
-    const vendorName = "matter-node.js";
+    const deviceName = "My First Broker Bridge";
+    const vendorName = "CS 525 G25";
     const passcode = environment.vars.number("passcode") ?? (await deviceStorage.get("passcode", 20202021));
     const discriminator = environment.vars.number("discriminator") ?? (await deviceStorage.get("discriminator", 3840));
     // product name / id and vendor id should match what is in the device certificate
     const vendorId = environment.vars.number("vendorid") ?? (await deviceStorage.get("vendorid", 0xfff1));
-    const productName = `node-matter OnOff ${isSocket ? "Socket" : "Light"}`;
+    // const productName = `node-matter OnOff ${isSocket ? "Socket" : "Light"}`;
+    const productName = "Factory Broker 9000";
     const productId = environment.vars.number("productid") ?? (await deviceStorage.get("productid", 0x8000));
 
     const port = environment.vars.number("port") ?? 5540;
@@ -239,12 +250,10 @@ async function getConfiguration() {
         discriminator,
         vendorid: vendorId,
         productid: productId,
-        isSocket,
         uniqueid: uniqueId,
     });
 
     return {
-        isSocket,
         deviceName,
         vendorName,
         passcode,

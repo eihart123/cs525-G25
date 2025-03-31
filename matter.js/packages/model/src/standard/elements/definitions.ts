@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/*** THIS FILE IS GENERATED, DO NOT EDIT ***/
+/*** THIS FILE IS GENERATED, DO NOT EDIT (no) ***/
+
+export * from "./AggregatedStats.js";
 
 export * from "./Identify.js";
 export * from "./Groups.js";

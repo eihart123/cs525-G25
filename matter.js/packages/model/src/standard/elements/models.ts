@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/*** THIS FILE IS GENERATED, DO NOT EDIT ***/
+/*** THIS FILE IS GENERATED, DO NOT EDIT (nah) ***/
 
 import * as definitions from "./definitions.js";
 import { ClusterModel } from "../../models/ClusterModel.js";
@@ -13,6 +13,8 @@ import { AttributeModel } from "../../models/AttributeModel.js";
 import { FieldModel } from "../../models/FieldModel.js";
 import { DeviceTypeModel } from "../../models/DeviceTypeModel.js";
 import { SemanticNamespaceModel } from "../../models/SemanticNamespaceModel.js";
+
+export const AggregatedStats = new ClusterModel(definitions.AggregatedStats);
 
 export const Identify = new ClusterModel(definitions.Identify);
 export const Groups = new ClusterModel(definitions.Groups);

@@ -8,12 +8,15 @@
 
 import { AggregatedStats } from "#clusters/aggregated-stats";
 import { ClusterBehavior } from "../../behavior/cluster/ClusterBehavior.js";
+// import { AggregatedStatesInterface } from "./AggregatedStatsInterface.js";
 
 /**
  * AggregatedStatsBehavior is the base class for objects that support interaction with
- * {@link TemperatureMeasurement.Cluster}.
+ * {@link AggregatedStats.Cluster}.
  */
-export const AggregatedStatsBehavior = ClusterBehavior.for(AggregatedStats.Cluster);
+export const AggregatedStatsBehavior = ClusterBehavior
+  // .withInterface<AggregatedStatesInterface>()
+  .for(AggregatedStats.Cluster);
 
 type AggregatedStatsBehaviorType = InstanceType<typeof AggregatedStatsBehavior>;
 export interface AggregatedStatsBehavior extends AggregatedStatsBehaviorType {}
