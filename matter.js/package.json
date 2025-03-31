@@ -19,6 +19,7 @@
     "packages/react-native",
     "packages/cli-tool",
     "packages/cs525",
+    "packages/cs525-baseline",
     "models",
     "codegen",
     "chip-testing"

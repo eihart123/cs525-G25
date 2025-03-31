@@ -53,6 +53,9 @@
             "path": "packages/cs525"
         },
         {
+            "path": "packages/cs525-baseline"
+        },
+        {
             "path": "models"
         },
         {

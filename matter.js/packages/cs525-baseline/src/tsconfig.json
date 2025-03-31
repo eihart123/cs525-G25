@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+      "composite": true,
+      "lib": ["es2023"],
+      "module": "nodenext",
+      "target": "es2022",
+  
+      "strict": true,
+      "esModuleInterop": true,
+      "skipLibCheck": true,
+      "moduleResolution": "node16"
+  },
+  "files": [],
+  "references": [
+      {
+          "path": "../../general/src"
+      },
+      {
+          "path": "../../model/src"
+      },
+      {
+          "path": "../../node/src"
+      },
+      {
+          "path": "../../nodejs/src"
+      },
+      {
+          "path": "../../protocol/src"
+      },
+      {
+          "path": "../../testing/src"
+      },
+      {
+          "path": "../../tools/src"
+      },
+      {
+          "path": "../../types/src"
+      }
+  ]
+}
