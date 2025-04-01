@@ -211,7 +211,8 @@ class ControllerNode {
 
             // Connect to the node if not already connected, this will automatically subscribe to all attributes and events
             if (!node.isConnected) {
-                node.connect();
+                // CS 525: disable auto subscribe to all attributes and events
+                node.connect({ autoSubscribe: false });
             }
 
             // Wait for initialization oif not yet initialized - this should only happen if we just commissioned it
