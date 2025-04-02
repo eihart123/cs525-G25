@@ -572,6 +572,7 @@ export class InteractionServer implements ProtocolHandler, InteractionRecipient 
         readRequest: ReadRequest,
         message: Message,
     ): Promise<{ dataReport: DataReport; payload?: DataReportPayloadIterator }> {
+        logger.info("handleReadRequest", readRequest, exchange, message);
         const { attributeRequests, eventRequests, isFabricFiltered, interactionModelRevision } = readRequest;
         logger.debug(
             `Received read request from ${exchange.channel.name}: attributes:${
@@ -624,6 +625,8 @@ export class InteractionServer implements ProtocolHandler, InteractionRecipient 
         message: Message,
         offline = false,
     ) {
+        // XXX thing
+        logger.info("readAttribute", _path) // , attribute.value, exchange, isFabricFiltered, message);
         return attribute.getWithVersion(exchange.session, isFabricFiltered, offline ? undefined : message);
     }
 
@@ -638,6 +641,7 @@ export class InteractionServer implements ProtocolHandler, InteractionRecipient 
         message: Message,
         offline = false,
     ) {
+        logger.info("readEndpointAttributesForSubscription", attributes, exchange, isFabricFiltered, message);
         const result = new Array<{
             path: AttributePath;
             attribute: AnyAttributeServer<unknown>;
@@ -679,6 +683,8 @@ export class InteractionServer implements ProtocolHandler, InteractionRecipient 
         isFabricFiltered: boolean,
         message: Message,
     ) {
+        // XXX worth hooking
+        logger.info("readEvent", _path, eventFilters, event) // , exchange, isFabricFiltered, message);
         return event.get(exchange.session, isFabricFiltered, message, eventFilters);
     }
 
@@ -1020,7 +1026,7 @@ export class InteractionServer implements ProtocolHandler, InteractionRecipient 
             isFabricFiltered,
             interactionModelRevision,
         } = request;
-        logger.debug(
+        logger.info(
             `Received subscribe request from ${exchange.channel.name} (keepSubscriptions=${keepSubscriptions}, isFabricFiltered=${isFabricFiltered})`,
         );
 
@@ -1117,6 +1123,7 @@ export class InteractionServer implements ProtocolHandler, InteractionRecipient 
         this.#subscriptionEstablishmentStarted.emit(session.peerAddress);
         let subscription: ServerSubscription;
         try {
+            // XXX worth hooking
             subscription = await this.#establishSubscription(
                 subscriptionId,
                 request,
@@ -1183,6 +1190,7 @@ export class InteractionServer implements ProtocolHandler, InteractionRecipient 
             session,
             structure: this.#endpointStructure,
 
+            // XXX worth hooking?
             readAttribute: (path, attribute, offline) =>
                 this.readAttribute(path, attribute, exchange, isFabricFiltered, message, offline),
 

@@ -5,7 +5,7 @@
 npm run build
 
 # 1000 devices
-for i in {10..109}; do
+for i in {10..11}; do
   # Try to start the server
   echo "Starting sensor $i..."
   DEVICE_ID=$i node dist/esm/SensorDeviceNode.js &

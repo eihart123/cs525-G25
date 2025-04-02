@@ -156,8 +156,10 @@ export class ServerSubscription extends Subscription {
 
     #lastUpdateTimeMs = 0;
     #updateTimer: Timer;
-    readonly #sendDelayTimer: Timer = Time.getTimer(`Subscription ${this.id} delay`, 50, () =>
-        this.#triggerSendUpdate(),
+    readonly #sendDelayTimer: Timer = Time.getTimer(`Subscription ${this.id} delay`, 50, () => {
+        logger.info("ServerSubscription.#sendDelayTimer");
+        return this.#triggerSendUpdate()
+    },
     );
     readonly #outstandingAttributeUpdates = new Map<string, AttributePathWithValueVersion<any>>();
     readonly #outstandingEventUpdates = new Set<EventPathWithEventData<any>>();
@@ -230,8 +232,10 @@ export class ServerSubscription extends Subscription {
         this.maxIntervalMs = maxInterval;
         this.#sendIntervalMs = sendInterval;
 
-        this.#updateTimer = Time.getTimer(`Subscription ${this.id} update`, this.#sendIntervalMs, () =>
-            this.#prepareDataUpdate(),
+        this.#updateTimer = Time.getTimer(`Subscription ${this.id} update`, this.#sendIntervalMs, () => {
+            logger.info("ServerSubscription.#updateTimer");
+            return this.#prepareDataUpdate()
+        },
         ); // will be started later
     }
 
@@ -270,6 +274,7 @@ export class ServerSubscription extends Subscription {
     }
 
     #registerNewAttributes() {
+        console.log("ServerSubscription.#registerNewAttributes", this.criteria.attributeRequests);
         const newAttributes = new Array<AttributeWithPath>();
         const attributeErrors = new Array<TypeFromSchema<typeof TlvAttributeStatus>>();
         const formerAttributes = new Set<string>(this.#attributeListeners.keys());
@@ -328,8 +333,10 @@ export class ServerSubscription extends Subscription {
                     if (attribute.isSubscribable) {
                         // If subscribable register listener
                         // TODO: Move to state change listeners from behaviors to remove the dangling promise here
-                        const listener = (value: any, version: number) =>
+                        const listener = (value: any, version: number) => {
+
                             this.attributeChangeListener(path, attribute.schema, version, value);
+                        }
                         attribute.addValueChangeListener(listener);
                         this.#attributeListeners.set(attributePathToId(path), { attribute, listener });
                     } else {
@@ -444,6 +451,7 @@ export class ServerSubscription extends Subscription {
      * controller. The data of newly added events are not sent automatically.
      */
     async updateSubscription() {
+        logger.info("ServerSubscription.updateSubscription");
         const { newAttributes } = this.#registerNewAttributes();
 
         for (const { path, attribute } of newAttributes) {
@@ -499,8 +507,9 @@ export class ServerSubscription extends Subscription {
         for (const occurrence of occurrences) {
             this.#outstandingEventUpdates.add(occurrence);
         }
-
+        console.log(`updateSubscription`);
         this.#prepareDataUpdate();
+        console.log(`ServerSubscription.updateSubscription done`);
     }
 
     get sendInterval(): number {
@@ -516,6 +525,7 @@ export class ServerSubscription extends Subscription {
     }
 
     override activate() {
+        logger.info('activate subscription', this.id);
         super.activate();
 
         // We do not need these data anymore, so we can free some memory
@@ -545,6 +555,7 @@ export class ServerSubscription extends Subscription {
      * sending by 50ms in any case to mke sure to catch all updates.
      */
     #prepareDataUpdate() {
+        logger.info("ServerSubscription.#prepareDataUpdate");
         if (this.#sendDelayTimer.isRunning || this.isClosed) {
             // sending data is already scheduled, data updates go in there ... or we close down already
             return;
@@ -574,6 +585,7 @@ export class ServerSubscription extends Subscription {
     }
 
     #triggerSendUpdate() {
+        console.log("ServerSubscription.#triggerSendUpdate");
         if (this.#currentUpdatePromise !== undefined) {
             logger.debug("Sending update already in progress, delaying update ...");
             this.#sendNextUpdateImmediately = true;
@@ -589,6 +601,8 @@ export class ServerSubscription extends Subscription {
      * Important: This method MUST NOT be called directly. Use triggerSendUpdate() instead!
      */
     async #sendUpdate(onlyWithData = false) {
+        logger.info("ServerSubscription.#sendUpdate");
+        console.trace()
         // Get all outstanding updates, make sure the order is correct per endpoint and cluster
         const attributeUpdatesToSend = new Array<AttributePathWithValueVersion<any>>();
         const attributeUpdates: Record<string, AttributePathWithValueVersion<any>[]> = {};
@@ -827,7 +841,7 @@ export class ServerSubscription extends Subscription {
         const { newAttributes, attributeErrors } = this.#registerNewAttributes();
         const { newEvents, eventErrors } = this.#registerNewEvents();
         const { eventReportsPayload, eventsFiltered } = await this.#collectInitialEventReportPayloads(newEvents);
-
+        console.log(`Initial report: ${eventReportsPayload.length} events, ${newAttributes.length} attributes`);
         await messenger.sendDataReport(
             {
                 suppressResponse: false, // we always need proper response for initial report
@@ -843,7 +857,9 @@ export class ServerSubscription extends Subscription {
     }
 
     attributeChangeListener<T>(path: AttributePath, schema: TlvSchema<T>, version: number, value: T) {
+        logger.info('ServerSubscription.attributeChangeListener', path, schema, version, value);
         const changeResult = this.attributeChangeHandler(path, schema, version, value);
+        logger.info('ServerSubscription.attributeChangeListener done', changeResult);
         if (MaybePromise.is(changeResult)) {
             const resolver = Promise.resolve(changeResult)
                 .catch(error => logger.error(`Error handling attribute change:`, error))
@@ -858,6 +874,7 @@ export class ServerSubscription extends Subscription {
         version: number,
         value: T,
     ): MaybePromise<void> {
+        logger.info('ServerSubscription.attributeChangeHandler', path, schema, version, value);
         const attributeListenerData = this.#attributeListeners.get(attributePathToId(path));
         if (attributeListenerData === undefined) return; // Ignore changes to attributes that are not subscribed to
 
@@ -878,9 +895,11 @@ export class ServerSubscription extends Subscription {
         }
         this.#outstandingAttributeUpdates.set(attributePathToId(path), { attribute, path, schema, version, value });
         this.#prepareDataUpdate();
+        logger.info('ServerSubscription.attributeChangeHandler done');
     }
 
     eventChangeListener<T>(path: EventPath, schema: TlvSchema<T>, newEvent: NumberedOccurrence) {
+        logger.info('ServerSubscription.eventChangeListener', path, schema, newEvent);
         const eventListenerData = this.#eventListeners.get(eventPathToId(path));
         if (eventListenerData === undefined) return; // Ignore changes to attributes that are not subscribed to
 
@@ -903,6 +922,7 @@ export class ServerSubscription extends Subscription {
     }
 
     async #flush() {
+        logger.info('this.#flush')
         this.#sendDelayTimer.stop();
         if (this.#outstandingAttributeUpdates.size > 0 || this.#outstandingEventUpdates.size > 0) {
             logger.debug(
@@ -996,7 +1016,7 @@ export class ServerSubscription extends Subscription {
             ); // TODO Format path better using endpoint structure
         }
         const messenger = new InteractionServerMessenger(exchange);
-
+        logger.info('ServerSubscription#sendUpdateMessage', attributes, events);
         try {
             if (attributes.length === 0 && events.length === 0) {
                 await messenger.sendDataReport(

@@ -21,7 +21,7 @@ import { CommissioningController, NodeCommissioningOptions } from "@project-chip
 import { NodeStates } from "@project-chip/matter.js/device";
 
 const logger = Logger.get("Controller");
-const numDevices = 100; // Number of devices to commission
+const numDevices = 1; // Number of devices to commission
 
 const environment = Environment.default;
 

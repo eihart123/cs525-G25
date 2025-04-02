@@ -199,7 +199,7 @@ export class Endpoint<T extends EndpointType = EndpointType.Empty> {
                 if (Array.isArray(vals)) {
                     throw new ImplementationError(`StateValue for ${behaviorId} must be an object, not an array`);
                 }
-
+                console.log("patching", patch, vals, behavior.state, this.path);
                 patch(vals, behavior.state, this.path);
             }
         });

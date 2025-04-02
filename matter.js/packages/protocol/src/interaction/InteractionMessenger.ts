@@ -220,6 +220,7 @@ export interface InteractionRecipient {
 
 export class InteractionServerMessenger extends InteractionMessenger {
     async handleRequest(recipient: InteractionRecipient) {
+        logger.info(`Handling request on ${this.getExchangeChannelName()}`);
         let continueExchange = true; // are more messages expected in this "transaction"?
         let isGroupSession = false;
         try {
@@ -244,6 +245,7 @@ export class InteractionServerMessenger extends InteractionMessenger {
                         );
 
                         // This potentially sends multiple DataReport Messages
+                        console.log("handleRequest . sendDataReport");
                         await this.sendDataReport(dataReport, readRequest.isFabricFiltered, payload);
                         break;
                     }
@@ -312,6 +314,7 @@ export class InteractionServerMessenger extends InteractionMessenger {
         payload?: DataReportPayloadIterator,
         waitForAck = true,
     ) {
+        logger.info(`Sending DataReport on ${this.getExchangeChannelName()}`);
         const { subscriptionId, suppressResponse, interactionModelRevision } = baseDataReport;
 
         const dataReport: TypeFromSchema<typeof TlvDataReportForSend> = {
@@ -338,6 +341,7 @@ export class InteractionServerMessenger extends InteractionMessenger {
 
             /** Helper method to send out the current dataReport and reset the relevant state for the next chunk. */
             const sendAndResetReport = async () => {
+                console.log("sendAndResetReport helper");
                 await this.sendDataReportMessage(dataReport, waitForAck);
                 // Empty the dataReport data fields for the next chunk and reset the messageSize
                 delete dataReport.attributeReports;
@@ -626,6 +630,7 @@ export class InteractionServerMessenger extends InteractionMessenger {
     }
 
     async sendDataReportMessage(dataReport: TypeFromSchema<typeof TlvDataReportForSend>, waitForAck = true) {
+        logger.info(`sendDataReportMessage on ${this.getExchangeChannelName()}`);
         const dataReportToSend = {
             ...dataReport,
             suppressResponse: dataReport.moreChunkedMessages ? false : dataReport.suppressResponse, // always false when moreChunkedMessages is true
@@ -697,6 +702,7 @@ export class IncomingInteractionClientMessenger extends InteractionMessenger {
 
     async readAggregateDataReport(expectedSubscriptionIds?: number[]): Promise<DataReport> {
         let result: DataReport | undefined;
+        console.log("readAggregateDataReport");
 
         for await (const report of this.readDataReports()) {
             if (expectedSubscriptionIds !== undefined) {

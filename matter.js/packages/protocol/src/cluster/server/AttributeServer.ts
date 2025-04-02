@@ -292,7 +292,7 @@ export class FixedAttributeServer<T> extends BaseAttributeServer<T> {
      */
     get(session: Session, isFabricFiltered: boolean, message?: Message): T {
         // TODO: check ACL
-
+        console.log(`get: ${this.name}`);
         return this.getter(session, this.endpoint, isFabricFiltered, message);
     }
 
@@ -304,6 +304,7 @@ export class FixedAttributeServer<T> extends BaseAttributeServer<T> {
      * attributes.
      */
     getWithVersion(session: Session, isFabricFiltered: boolean, message?: Message) {
+        console.log(`getWithVersion: ${this.name}`);
         return { version: this.datasource.version, value: this.get(session, isFabricFiltered, message) };
     }
 
@@ -396,6 +397,7 @@ export class AttributeServer<T> extends FixedAttributeServer<T> {
         initValue: T,
         defaultValue: T | undefined,
         datasource: ClusterDatasource,
+        // Maybe we care about this?
         getter?: (session?: Session, endpoint?: EndpointInterface, isFabricFiltered?: boolean, message?: Message) => T,
 
         /**
@@ -602,6 +604,7 @@ export class AttributeServer<T> extends FixedAttributeServer<T> {
      * new value and the version number.
      */
     override addValueChangeListener(listener: (value: T, version: number) => void) {
+        logger.info(`Adding value change listener for attribute "${this.name}" with listener ${listener}`);
         this.valueChangeListeners.push(listener);
     }
 
@@ -628,6 +631,7 @@ export class AttributeServer<T> extends FixedAttributeServer<T> {
      * new value and the old value. This method is a convenient alias for addValueSetListener.
      */
     override subscribe(listener: (newValue: T, oldValue: T) => void) {
+        logger.info(`Subscribing to attribute "${this.name}" with listener ${listener}`);
         this.addValueSetListener(listener);
     }
 
@@ -648,6 +652,7 @@ export function genericFabricScopedAttributeGetterFromFabric<T>(
     attributeName: string,
     defaultValue: T,
 ) {
+    console.log(`genericFabricScopedAttributeGetterFromFabric: ${attributeName}`);
     const data = fabric.getScopedClusterDataValue<{ value: T }>(cluster, attributeName);
     return data?.value ?? defaultValue;
 }

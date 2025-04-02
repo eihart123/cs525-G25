@@ -762,7 +762,7 @@ export class PairedNode {
                     );
                     return;
                 }
-                logger.debug(
+                logger.info(
                     `Node ${this.nodeId} Trigger attribute update for ${endpointId}.${cluster.name}.${attributeId} to ${Diagnostic.json(
                         value,
                     )} (changed: ${changed})`,
@@ -793,7 +793,7 @@ export class PairedNode {
                     );
                     return;
                 }
-                logger.debug(
+                logger.info(
                     `Node ${this.nodeId} Trigger event update for ${endpointId}.${cluster.name}.${eventId} for ${events.length} events`,
                 );
                 asClusterClientInternal(cluster)._triggerEventUpdate(eventId, events);

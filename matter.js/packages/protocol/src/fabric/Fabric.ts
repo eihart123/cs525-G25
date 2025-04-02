@@ -242,10 +242,12 @@ export class Fabric {
     }
 
     getScopedClusterDataValue<T>(cluster: Cluster<any, any, any, any, any>, clusterDataKey: string): T | undefined {
+        
         const dataMap = this.#scopedClusterData.get(cluster.id);
         if (dataMap === undefined) {
             return undefined;
         }
+        console.log("getScopedClusterDataValue", cluster.id, clusterDataKey, dataMap);
         return dataMap.get(clusterDataKey) as T;
     }
 

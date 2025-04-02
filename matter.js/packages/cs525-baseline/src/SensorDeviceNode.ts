@@ -178,10 +178,10 @@ async function getConfiguration(deviceID: string) {
     const deviceStorage = (await storageService.open(`device-${deviceID}`)).createContext("data");
 
     // How often to update the measured value in seconds
-    let interval = environment.vars.number("interval") ?? (await deviceStorage.get("interval", 60));
+    let interval = environment.vars.number("interval") ?? (await deviceStorage.get("interval", 10));
     if (interval < 1) {
-        console.log(`Invalid Interval ${interval}, set to 60s`);
-        interval = 60;
+        console.log(`Invalid Interval ${interval}, set to 10s`);
+        interval = 10;
     }
     console.log(`Update interval set to ${interval} seconds`); // Log the interval for debugging
 
