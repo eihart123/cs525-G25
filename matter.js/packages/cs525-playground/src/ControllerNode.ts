@@ -276,35 +276,45 @@ class ControllerNode {
 
             const devices = node.getDevices();
             for (const device of devices) {
-                console.log(`Device ${device.number} found with type: ${device.deviceType}`);
+                console.log(`Device ${device.number} "${device.name}" found with type: ${device.deviceType}`);
+                for (const child of device.getChildEndpoints()) {
+                    console.log(`Child endpoint "${child.name}" found with type: ${child.deviceType}`);
+                    const temperatureMeasurement = child.getClusterClient(TemperatureMeasurement.Complete);
+                    if (!temperatureMeasurement) {
+                        console.log(`Child ${child.number} does not support Temperature Measurement`);
+                        continue; // Skip if Temperature Measurement is not supported
+                    }
+                    console.log('But ... IT DOES!');
+                    temperatureMeasurement.addMeasuredValueAttributeListener((value: number | null) => {
+                        // This listener will be called whenever the measured value changes
+                        console.log(`Child ${child.number} Temperature Measurement changed to: ${value}`);
+                    })
+                    const minInterval = 1
+                    const maxInterval = 10
+                    await temperatureMeasurement.subscribeMeasuredValueAttribute((value: number | null) => {
+                      console.log(`Child ${child.number} Temperature Measurement subscription to: ${value}`);
+                      console.log(
+                        commissioningController.controllerInstance?.exchangeManager.transmissionMetadata
+                      )
+                    }, minInterval, maxInterval)
+                    const measuredValue = await temperatureMeasurement.getMeasuredValueAttribute();
+                    console.log(`Child ${child.number} Temperature Measurement: ${measuredValue}`);
+                };
                 // const clients = device.getAllClusterClients();
                 // console.log(clients);
-                const temperatureMeasurement = device.getClusterClient(TemperatureMeasurement.Complete);
-                if (!temperatureMeasurement) {
-                    console.log(`Device ${device.number} does not support Temperature Measurement`);
-                    continue; // Skip if Temperature Measurement is not supported
-                }
+                // const temperatureMeasurement = device.getClusterClient(TemperatureMeasurement.Complete);
+                // if (!temperatureMeasurement) {
+                //     console.log(`Device ${device.number} does not support Temperature Measurement`);
+                //     continue; // Skip if Temperature Measurement is not supported
+                // }
                 // console.log(temperatureMeasurement)
-                temperatureMeasurement.addMeasuredValueAttributeListener((value: number | null) => {
-                    // This listener will be called whenever the measured value changes
-                    console.log(`Device ${device.number} Temperature Measurement changed to: ${value}`);
-                })
-                const minInterval = 1
-                const maxInterval = 10
-                await temperatureMeasurement.subscribeMeasuredValueAttribute((value: number | null) => {
-                  console.log(`Device ${device.number} Temperature Measurement subscription to: ${value}`);
-                  console.log(
-                    commissioningController.controllerInstance?.exchangeManager.transmissionMetadata
-                  )
-                }, minInterval, maxInterval)
                 // attributes.measuredValue
                 // getMeasuredValueAttribute
                 // subscribeMeasuredValueAttribute
                 // endpointId
                 // if (temperatureMeasurement) {
                 //     // Example to get the measuredValue from TemperatureMeasurement cluster
-                //     const measuredValue = await temperatureMeasurement.getMeasuredValueAttribute();
-                //     console.log(`Device ${device.number} Temperature Measurement: ${measuredValue}`);
+
                 // } else {
                 //     console.log(`Device ${device.number} does not support Temperature Measurement`);
                 // }
