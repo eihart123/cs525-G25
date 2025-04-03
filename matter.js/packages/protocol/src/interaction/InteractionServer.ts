@@ -1026,6 +1026,7 @@ export class InteractionServer implements ProtocolHandler, InteractionRecipient 
             isFabricFiltered,
             interactionModelRevision,
         } = request;
+        // <R => B> <B => E>
         logger.info(
             `Received subscribe request from ${exchange.channel.name} (keepSubscriptions=${keepSubscriptions}, isFabricFiltered=${isFabricFiltered})`,
         );
