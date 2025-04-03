@@ -13,25 +13,14 @@
 
 import { Environment, Logger, singleton, StorageService, Time } from "@matter/main";
 import { BasicInformationCluster, DescriptorCluster, GeneralCommissioning, OnOff } from "@matter/main/clusters";
-import { Ble, ClusterClientObj, ControllerCommissioningFlowOptions } from "@matter/main/protocol";
+import { ClusterClientObj, ControllerCommissioningFlowOptions } from "@matter/main/protocol";
 import { ManualPairingCodeCodec, NodeId } from "@matter/main/types";
-import { NodeJsBle } from "@matter/nodejs-ble";
 import { CommissioningController, NodeCommissioningOptions } from "@project-chip/matter.js";
 import { NodeStates } from "@project-chip/matter.js/device";
 
 const logger = Logger.get("Controller");
 
 const environment = Environment.default;
-
-if (environment.vars.get("ble")) {
-    // Initialize Ble
-    Ble.get = singleton(
-        () =>
-            new NodeJsBle({
-                hciId: environment.vars.number("ble.hci.id"),
-            }),
-    );
-}
 
 const storageService = environment.get(StorageService);
 
@@ -98,29 +87,6 @@ class ControllerNode {
             regulatoryCountryCode: "XX",
         };
 
-        let ble = false;
-        if (environment.vars.get("ble")) {
-            ble = true;
-            const wifiSsid = environment.vars.string("ble.wifi.ssid");
-            const wifiCredentials = environment.vars.string("ble.wifi.credentials");
-            const threadNetworkName = environment.vars.string("ble.thread.networkname");
-            const threadOperationalDataset = environment.vars.string("ble.thread.operationaldataset");
-            if (wifiSsid !== undefined && wifiCredentials !== undefined) {
-                logger.info(`Registering Commissioning over BLE with WiFi: ${wifiSsid}`);
-                commissioningOptions.wifiNetwork = {
-                    wifiSsid: wifiSsid,
-                    wifiCredentials: wifiCredentials,
-                };
-            }
-            if (threadNetworkName !== undefined && threadOperationalDataset !== undefined) {
-                logger.info(`Registering Commissioning over BLE with Thread: ${threadNetworkName}`);
-                commissioningOptions.threadNetwork = {
-                    networkName: threadNetworkName,
-                    operationalDataset: threadOperationalDataset,
-                };
-            }
-        }
-
         /** Create Matter Controller Node and bind it to the Environment. */
         const commissioningController = new CommissioningController({
             environment: {
@@ -146,14 +112,14 @@ class ControllerNode {
                             : shortDiscriminator !== undefined
                               ? { shortDiscriminator }
                               : {},
-                    discoveryCapabilities: {
-                        ble,
-                    },
+                    discoveryCapabilities: {},
                 },
                 passcode: setupPin,
             };
             logger.info(`Commissioning ... ${Logger.toJSON(options)}`);
             const nodeId = await commissioningController.commissionNode(options);
+
+            // 
 
             console.log(`Commissioning successfully done with nodeId ${nodeId}`);
         }

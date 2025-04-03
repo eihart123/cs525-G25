@@ -13,6 +13,37 @@ import { TlvNullable } from "../tlv/TlvNullable.js";
 import { Identity } from "#general";
 import { ClusterRegistry } from "../cluster/ClusterRegistry.js";
 
+// This is where we should list all allowed attribute names for the AggregatedStats cluster
+export type AggregateInterval = 'Latest' | 10 | 60;
+export type AggregatedStatKind = 'min' | 'max' | 'average';
+export type AggregatedAttribute = 'measuredValue'
+
+export type AggregatedAttributeFull = `${AggregatedStatKind}${AggregatedAttribute}${AggregateInterval}`
+export type AggregatedRecord = {
+    [K in AggregatedAttributeFull]: number;
+  };
+
+// cross product of all possible combinations of statKind, attribute, and aggregateInterval
+const statKinds: AggregatedStatKind[] = ['min', 'max', 'average'];
+export const attributeList: AggregatedAttribute[] = ['measuredValue'];
+
+const aggregateIntervals: AggregateInterval[] = ['Latest', 10, 60];
+
+const attributeNames: AggregatedAttributeFull[] = [];
+for (const statKind of statKinds) {
+    for (const attribute of attributeList) {
+        for (const aggregateInterval of aggregateIntervals) {
+            attributeNames.push(`${statKind}${attribute}${aggregateInterval}` as AggregatedAttributeFull);
+        }
+    }
+}
+
+// Map each one onto the OptionalAttribute type
+const attributeMap = attributeNames.reduce((acc, attributeName, i) => {
+    acc[attributeName] = OptionalAttribute(i, TlvNullable(TlvInt16.bound({ min: -27315, max: 32767 })), { default: null });
+    return acc;
+}, {} as Record<AggregatedAttributeFull, ReturnType<typeof OptionalAttribute>>);
+console.log(attributeMap);
 export namespace AggregatedStats {
     /**
      * @see {@link Cluster}
@@ -22,6 +53,7 @@ export namespace AggregatedStats {
         name: "AggregatedStats",
         revision: 1,
 
+        // attributes: attributeMap
         attributes: {
             /**
              * Indicates the average measured temperature.
@@ -31,7 +63,7 @@ export namespace AggregatedStats {
              * See CS 525 Matter Application Cluster Extension (https://docs.google.com/document/d/1Br-RXX_OIgMnbJTYEfhOZdOQT0xYjVlxCxtCGePhgqo/edit?tab=t.0#heading=h.ek5k33x2f7r4)
              * for more details.
              */
-            averageTemperatureValue: OptionalAttribute(0x0, TlvNullable(TlvInt16.bound({ min: -27315, max: 32767 })), { default: null }),
+            averagemeasuredValueLatest: OptionalAttribute(0x0, TlvNullable(TlvInt16.bound({ min: -27315, max: 32767 })), { default: null }),
         }
     });
 
