@@ -53,18 +53,28 @@ export namespace AggregatedStats {
         name: "AggregatedStats",
         revision: 1,
 
-        attributes: attributeMap
-        // attributes: {
-        //     /**
-        //      * Indicates the average measured temperature.
-        //      *
-        //      * The null value indicates that the average measured temperature is unknown or is not being recorded.
-        //      *
-        //      * See CS 525 Matter Application Cluster Extension (https://docs.google.com/document/d/1Br-RXX_OIgMnbJTYEfhOZdOQT0xYjVlxCxtCGePhgqo/edit?tab=t.0#heading=h.ek5k33x2f7r4)
-        //      * for more details.
-        //      */
-        //     averagemeasuredValueLatest: OptionalAttribute(0x0, TlvNullable(TlvInt16.bound({ min: -27315, max: 32767 })), { default: null }),
-        // }
+        // attributes: attributeMap
+        attributes: {
+            /**
+             * Indicates the average measured temperature.
+             *
+             * The null value indicates that the average measured temperature is unknown or is not being recorded.
+             *
+             * See CS 525 Matter Application Cluster Extension (https://docs.google.com/document/d/1Br-RXX_OIgMnbJTYEfhOZdOQT0xYjVlxCxtCGePhgqo/edit?tab=t.0#heading=h.ek5k33x2f7r4)
+             * for more details.
+             */
+            averageMeasuredValue10: OptionalAttribute(0x0, TlvNullable(TlvInt16.bound({ min: -27315, max: 32767 })), { default: null }),
+
+            /**
+             * Indicates the average measured temperature.
+             *
+             * The null value indicates that the average measured temperature is unknown or is not being recorded.
+             *
+             * See CS 525 Matter Application Cluster Extension (https://docs.google.com/document/d/1Br-RXX_OIgMnbJTYEfhOZdOQT0xYjVlxCxtCGePhgqo/edit?tab=t.0#heading=h.ek5k33x2f7r4)
+             * for more details.
+             */
+            averageMeasuredValue60: OptionalAttribute(0x1, TlvNullable(TlvInt16.bound({ min: -27315, max: 32767 })), { default: null }),
+        }
     });
 
     /**

@@ -190,6 +190,14 @@ class VirtualMatterBrokerNode {
         // Start the server
         await server.start();
         console.log(`Matter server started on port ${port}`);
+
+        // await this.#aggregator.set({
+        //     // @ts-ignore
+        //     aggregatedStats: {
+        //         averageMeasuredValue10: 8888,
+        //         averageMeasuredValue60: 8888,
+        //     }
+        // });
     }
 
     async start(instanceNodeId: string) {

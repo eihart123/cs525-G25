@@ -28,6 +28,11 @@ export class AggregatedStatsServer extends AggregatedStatsBehavior {
         for (const part of this.endpoint.parts) {
             console.log(part);
         }
+        // Initialize state values (Attributes) so that they can be subscribed to
+        this.state.averageMeasuredValue10 = null;
+        this.state.averageMeasuredValue60 = null;
+        // this.state.averageMeasuredValue10 = 9999;
+        // this.state.averageMeasuredValue60 = 9999;
         console.log("Logging parts done");
     }
 
