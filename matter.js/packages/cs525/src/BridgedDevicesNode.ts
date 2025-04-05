@@ -26,8 +26,8 @@ import { TemperatureSensorDevice } from "@matter/node/devices";
 
 import { Diagnostic, Environment, Logger, StorageService, StorageContext, StorageManager, Time } from "@matter/main";
 import { DescriptorCluster, GeneralCommissioning } from "@matter/main/clusters";
-import { attributeList } from "@matter/types/clusters/aggregated-stats";
-import { type AggregatedRecord, AggregateInterval, AggregatedAttribute } from "@matter/types/clusters/aggregated-stats";
+import { AttributeList } from "@matter/types/clusters/aggregated-stats";
+import { type AggregatedRecord, AggregateInterval, AggregateIntervals, AggregatedAttribute } from "@matter/types/clusters/aggregated-stats";
 
 import { NodeId, VendorId, Cluster, ClusterId, ClusterRegistry } from "@matter/types";
 // import { logEndpoint } from "#main/protocol";
@@ -61,9 +61,25 @@ interface Datapoint {
     timestamp: number;
 }
 
-
+interface RiemannData {
+    sum: number;
+}
+interface MoreDatapoint extends Record<AggregatedAttribute, RiemannData>{
+    latest: Datapoint;
+}
+/*
+{
+    10: riemannSum
+    60, riemannSum2
+    latest: {
+        value: 0,
+        timestamp: 0
+    }
+}
+ */
 type ClusterPlusAttribute = string
-type EndpointDataRecord = Record<ClusterPlusAttribute, Record<string, Datapoint>>
+// EndpointID <-> Datapoint
+type EndpointDataRecord = Record<ClusterPlusAttribute, Record<string, MoreDatapoint>>
 class VirtualMatterBrokerNode {
     instanceNodeId: string;
     #vmbStorageManager: StorageManager;
@@ -71,6 +87,8 @@ class VirtualMatterBrokerNode {
     #controllerStorage: StorageContext;
     #aggregator: Endpoint<AggregatorEndpoint>;
     #aggregatorStorage: StorageContext;
+    // When the interval was last fired
+    #lastIntervalFired: Record<AggregateInterval, number>;
     // Data is the inputs from the south side
     #aggregatorData: EndpointDataRecord;
     // Attributes is the final computed stuff
@@ -106,6 +124,7 @@ class VirtualMatterBrokerNode {
             adminFabricLabel,
         };
         this.#controller = new CommissioningController(commissionerOptions);
+        this.#lastIntervalFired = {}
         // Start the controller
         await this.#controller.start();
     }
@@ -166,9 +185,6 @@ class VirtualMatterBrokerNode {
         this.#aggregator = new Endpoint(AggregatorEndpoint.with(AggregatedStatsServer), { id: "aggregator" });
         await server.add(this.#aggregator);
 
-        // server.behaviors.require(AggregatedStatsBehavior, {
-        //     averagemeasuredValueLatest: null,
-        // });
         server.behaviors.require(AggregatedStatsBehavior);
 
         // Start the server
@@ -189,17 +205,15 @@ class VirtualMatterBrokerNode {
         await this.#initAggregator();
 
         // Setup a timer to recalculate aggregates
-        setInterval(async () => {
-            logger.info("Recalculating aggregates for 10 seconds interval");
-            await this.recalculateAggregatesFor(10);
-            logger.info("Done recalculating aggregates for 10 seconds interval");
-        }, 1000 * 10);
-
-        setInterval(async () => {
-            logger.info("Recalculating aggregates for 1 minute interval");
-            await this.recalculateAggregatesFor(60);
-            logger.info("Done recalculating aggregates for 1 minute interval");
-        }, 1000 * 60);
+        for (const length of AggregateIntervals) {
+            console.log(`Setting up interval for ${length} seconds`);
+            const interval = parseInt(length)
+            this.#lastIntervalFired[length] = Date.now()
+            setInterval(async () => {
+                logger.info(`Recalculating aggregates for ${length} seconds interval`);
+                await this.recalculateAggregatesFor(length as AggregateInterval);
+            }, 1000 * interval);
+        }
     }
 
     async pairNode(i: number) {
@@ -225,62 +239,77 @@ class VirtualMatterBrokerNode {
         // TODO: on commission, update the aggregator endpoint with the new node
         const nodeId = await this.#controller.commissionNode(options);
         this.onNodeCommission(nodeId);
-        
+
+        // Connect the node
+        const node = await this.#controller.getNode(nodeId);
+        if (node && !node.isConnected) {
+            node.connect();
+        }
     }
 
     async recalculateAggregatesFor(intervalSec: AggregateInterval) {
         /**
-        Calculates aggregated data for intervalSec
+         * This function is called every intervalSec seconds.
          */
-        /* we need 15, 30, 60 sec aggregates */
-        // Find all datapoints updated in the last N seconds
 
         const now = Date.now();
         console.log(this.#aggregatorData)
-        const dataGroupedByAttribute: Record<ClusterPlusAttribute, (Datapoint & { endpointId: string }) []> = {}
+        // attribute: [{ sum: XXX, endpointId: YYY }]
+        const dataFilteredByInterval: Record<string, { sum: number, endpointId: string }[]> = {}
         for (const [key, value] of Object.entries(this.#aggregatorData)) {
-            const attribute = key.split(".")[1] as AggregatedAttribute
-            
-            const points = Object.entries(value).map(([endpointId, datapoint]) => {
-                return {
-                    endpointId: endpointId,
-                    ...datapoint
-                }
-            }).filter((datapoint) => {
-                if (intervalSec === "Latest") {
-                    return true
-                }
-                const elapsedTime = now - intervalSec * 1000
-                return datapoint.timestamp >= elapsedTime
-            })
+            const rawAttribute = key.split(".")[1];
+            // Riemann sum (approximating the area under the curve) by the length of the interval (b - a)
 
-            dataGroupedByAttribute[attribute] = points
+            // Uppercase the first letter of the attribute name.
+            const attribute = rawAttribute.charAt(0).toUpperCase() + rawAttribute.slice(1) as AggregatedAttribute;
+            
+            // Map each attribute for the interval we are interested in
+            if (!Object.hasOwn(dataFilteredByInterval, attribute)) {
+                dataFilteredByInterval[attribute] = [];
+            }
+
+            for (const [endpointId, datapoint] of Object.entries(value)) {
+                dataFilteredByInterval[attribute].push({
+                    sum: datapoint[intervalSec]?.sum || 0,
+                    endpointId,
+                })
+            }
+            
         }
-        logger.info({ dataGroupedByAttribute }, "Data grouped by attribute");
+        logger.info({ dataFilteredByInterval }, "Data grouped by attribute");
 
         // Calculate average, min, max
-        for (const [key, value] of Object.entries(dataGroupedByAttribute)) {
-            const attribute = key as AggregatedAttribute
-            const values = value.map((datapoint) => datapoint.value)
-            const sum = values.reduce((acc, val) => acc + val, 0);
-            const avg = values.length === 0 ? 0 : sum / values.length;
-            const min = Math.min(...values);
-            const max = Math.max(...values);
+        for (const [attribute, value] of Object.entries(dataFilteredByInterval)) {
+            const sums = value.map((endpointData) => endpointData.sum)
+            const sum_of_sums = sums.reduce((acc, val) => acc + val, 0);
+            // Divide by the number of endpoints
+            // Divide by the size of the interval
+            logger.info({ sum_of_sums }, `sums for ${attribute}`);
+            const avg = sum_of_sums / value.length / parseInt(`${intervalSec}`);
 
+            // These need to start lowercase (set syntax)
             const aggregatedStats = {
                 [`average${attribute}${intervalSec}`]: avg,
-                [`min${attribute}${intervalSec}`]: min,
-                [`max${attribute}${intervalSec}`]: max,
             } as AggregatedRecord
 
-            // TODO: Fix this crash
+            console.info({ aggregatedStats }, `Aggregated stats for interval ${intervalSec}s`);
+
             await this.#aggregator.set({
-                // typescript moment
                 // @ts-ignore
                 aggregatedStats,
-                // averageMeasuredValueLatest: aggregatedStats[`average${attribute}${intervalSec}`],
-                // ...aggregatedStats,
             });
+        }
+
+        // reset the interval
+        this.#lastIntervalFired[intervalSec] = Date.now()
+
+        // Cleanup the riemann sums
+        for (const [key, value] of Object.entries(this.#aggregatorData)) {
+            const clusterPlusAttribute = key as ClusterPlusAttribute
+            for (const [endpointId, datapoint] of Object.entries(value)) {
+                // Reset the riemann sum to 0
+                this.#aggregatorData[clusterPlusAttribute][endpointId][intervalSec] = { sum: 0 }
+            }
         }
         
 
@@ -289,41 +318,6 @@ class VirtualMatterBrokerNode {
     async onNodeCommission(nodeId: NodeId) {
         // Query the original node for all its endpoints
         // (await this.#controller.getNode(nodeId)).getDevices()
-
-        /**
-         
-          Descriptor cluster with a PartsList attribute containing all the endpoints representing those Bridged Devices.
-         PartsList: EP 1, 11,12,13,14,15,16
-         The PartsList on endpoint 1 lists all endpoints for bridged
-            devices; each endpoint 11..16 represents one device at
-            the non-Matter side of the bridge.
-         Descriptor cluster: EP 11
-         
-         Bridge Device Basic Information cluster:
-         - Node Label: "dining table"
-
-        Descriptor cluster: EP 2
-         DeviceTypeList: Aggregator
-            PartsList: EP 11,12,13
-            TagList: Tag=(MfgCode=0xFFF1, Namespace=0x11,
-            TagID=0x03), Label=“Zigbee bridge”
-        
-        Descriptor cluster: EP 1
-        DeviceTypeList: Aggregator
-        PartsList: EP 14,15,16
-        TagList: Tag=(MfgCode=0xFFF1, Namespace=0x11,
-        TagID=0x05), Label=“Z-Wave bridge”
-
-        Actions cluster: ActionList: [ ]
-        EndpointLists: [
-        [0xE001, "living room", room, [12,13,14] ],
-        [0xE002, "bedroom", room, [22,23,24,25,26] ]
-
-        TODO: Add all endpoints to the PartsList of the aggregator endpoint.
-        
-
-        
-         */
         const commissionedNodes = this.#controller.getCommissionedNodes()
         console.log(`Commissioned nodes: [${commissionedNodes}]`);
         const details = this.#controller.getCommissionedNodesDetails()
@@ -381,18 +375,21 @@ class VirtualMatterBrokerNode {
             if (!cluster) {
                 throw new Error(`No such clusterID '${clusterId}'`);
             }
+            const clusterNameProperty = cluster.name.charAt(0).toLowerCase() + cluster.name.slice(1)
             const proxiedClusters = [
                 'TemperatureMeasurement'
             ]
 
-            // Cross product proxied clusters with attributes
+            // This is all attributes we want to match against
             const aggregatedAttributes: string[] = []
             for (const cluster of proxiedClusters) {
-                for (const attribute of attributeList) {
-                    aggregatedAttributes.push(`${cluster}.${attribute}`)
+                for (const attribute of AttributeList) {
+                    const attributeNameProperty = attribute.charAt(0).toLowerCase() + attribute.slice(1)
+                    aggregatedAttributes.push(`${cluster}.${attributeNameProperty}`)
                 }
             }
 
+            // This is the attribute we got from the event
             const clusterPlusAttribute = `${cluster.name}.${attributeName}`
 
             logger.info(`Cluster: ${cluster.name}, Attribute: ${attributeName}, Value: ${value}`)
@@ -402,27 +399,40 @@ class VirtualMatterBrokerNode {
             if (aggregatedAttributes.includes(clusterPlusAttribute)) {
                 logger.info(`${clusterPlusAttribute} matched an aggregated Attribute, updating tracked metadata`)
                 if (!Object.hasOwn(this.#aggregatorData, clusterPlusAttribute)) {
-                    const empty: Record<string, Datapoint> = {}
+                    const empty: Record<string, MoreDatapoint> = {}
                     this.#aggregatorData[clusterPlusAttribute] = empty;
                 }
-
-                if (!Object.hasOwn(this.#aggregatorData[clusterPlusAttribute], endpointId)) {
-                    this.#aggregatorData[clusterPlusAttribute][endpointId] = {
+                const timestamp = Date.now()
+                this.#aggregatorData[clusterPlusAttribute][endpointId] = {
+                    ...this.#aggregatorData[clusterPlusAttribute][endpointId],
+                    latest: {
                         value,
-                        timestamp: Date.now()
+                        timestamp
+                    },
+                }
+                
+                // With this value, we want to update our riemann sums
+                for (const length of AggregateIntervals) {
+                    const previousArea = this.#aggregatorData[clusterPlusAttribute][endpointId]?.[length]?.sum || 0
+                    const area = value * ((timestamp - this.#lastIntervalFired[length]) / 1000)
+                    this.#aggregatorData[clusterPlusAttribute][endpointId][length] = {
+                        sum: previousArea + area,
                     }
                 }
-
-                this.recalculateAggregatesFor('Latest')
+            } else {
+                logger.info(`${clusterPlusAttribute} did not match an aggregated Attribute`)
             }
 
             // Update the proxy endpoint
             if (proxiedClusters.includes(cluster.name)) {
+                // These need to start lowercase (set syntax)
                 await proxy_endpoint.set({
-                    [cluster.name]: {
+                    [clusterNameProperty]: {
                         [attributeName]: value
                     }
                 })
+            } else {
+                logger.info(`Cluster ${cluster.name} is not proxied, not updating proxy endpoint`)
             }
         });
 
@@ -484,6 +494,7 @@ async function main() {
         //     },
         // );
         await vmb.pairNode(i);
+        // await vmb.connectNode(i);
     }
 }
 

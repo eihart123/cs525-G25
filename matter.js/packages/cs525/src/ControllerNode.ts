@@ -11,12 +11,13 @@
  * because you need to adjust the code in any way depending on your use case.
  */
 
-import { Environment, Logger, singleton, StorageService, Time } from "@matter/main";
+import { Diagnostic, Environment, Logger, singleton, StorageService, Time } from "@matter/main";
 import { BasicInformationCluster, DescriptorCluster, GeneralCommissioning, OnOff } from "@matter/main/clusters";
 import { ClusterClientObj, ControllerCommissioningFlowOptions } from "@matter/main/protocol";
 import { ManualPairingCodeCodec, NodeId } from "@matter/main/types";
 import { CommissioningController, NodeCommissioningOptions } from "@project-chip/matter.js";
 import { NodeStates } from "@project-chip/matter.js/device";
+import { AggregatedStatsCluster } from "@matter/types/clusters/aggregated-stats";
 
 const logger = Logger.get("Controller");
 
@@ -73,7 +74,7 @@ class ControllerNode {
                 environment.vars.number("longDiscriminator") ??
                 (await controllerStorage.get("longDiscriminator", 3840));
             if (longDiscriminator > 4095) throw new Error("Discriminator value must be less than 4096");
-            setupPin = environment.vars.number("pin") ?? (await controllerStorage.get("pin", 20202021));
+            setupPin = environment.vars.number("pin") ?? (await controllerStorage.get("pin", 20250525));
         }
         if ((shortDiscriminator === undefined && longDiscriminator === undefined) || setupPin === undefined) {
             throw new Error(
@@ -117,7 +118,10 @@ class ControllerNode {
                 passcode: setupPin,
             };
             logger.info(`Commissioning ... ${Logger.toJSON(options)}`);
-            const nodeId = await commissioningController.commissionNode(options);
+            const nodeId = await commissioningController.commissionNode(
+                options,
+                { connectNodeAfterCommissioning: false }
+            );
 
             // 
 
@@ -180,11 +184,59 @@ class ControllerNode {
                 // CS 525: disable auto subscribe to all attributes and events
                 node.connect({ autoSubscribe: false });
             }
-
+            console.log(`Node ${nodeId} connected`);
             // Wait for initialization oif not yet initialized - this should only happen if we just commissioned it
             if (!node.initialized) {
                 await node.events.initialized;
             }
+
+            node.logStructure()
+            console.log('isconnect', node.isConnected)
+            console.log('initiaized', node.initialized)
+            console.log('basicinfo', node.basicInformation)
+            const endpoint = node.getRootEndpoint()
+            const rootEndpoint = node.getRootEndpoint()
+            const endpoints = rootEndpoint?.getChildEndpoints() ?? [];
+            for (const child of endpoints) {
+                console.log(`Child endpoint "${child.name}" found with type: ${child.deviceType}`);
+                const aggregatedStats = child.getClusterClient(AggregatedStatsCluster);
+                if (!aggregatedStats) {
+                    console.log(`Child ${child.number} does not support Aggregated Stats`);
+                    continue; // Skip if Temperature Measurement is not supported
+                }
+                console.log('But ... IT DOES!');
+                console.log(`Stats Cluster: ${aggregatedStats}`);
+                console.log(await aggregatedStats?.attributes.attributeList.get())
+                logger.info(await aggregatedStats.subscribeAverageMeasuredValue10Attribute(value => console.log("average10", value), 5, 30));
+                logger.info(await aggregatedStats.subscribeAverageMeasuredValue60Attribute(value => console.log("average60", value), 5, 120));
+            }
+            const descriptorCluster = node.getRootClusterClient(DescriptorCluster);
+            const partsList = (await descriptorCluster?.attributes.partsList.get()) ?? [];
+            console.log(`Root endpoint: ${rootEndpoint?.number}`);
+            console.log(`Root endpoint name: ${rootEndpoint?.name}`);
+            console.log(`Root endpoint descriptorCluster: ${descriptorCluster}`);
+            // endpoints
+            console.log(`Root child endpoint: ${endpoints}`);
+            // console.log(`Root child endpoints: ${Diagnostic.json(endpoints)}`);
+            // console.log(`old PartsList: [${Diagnostic.json(partsList)}]`);
+            // stats.
+
+            for (const part of partsList) {
+                console.log(`Part: ${part}`);
+                // Get the endpoint corresponding to the part number
+                const endpoint = endpoints.find((ep) => ep.number === part);
+                if (endpoint) {
+                    console.log(`Endpoint name for part ${part}: ${endpoint.name}`);
+                }
+            }
+
+            // if (stats === undefined) {
+            //     logger.info("No AggregatedStats Cluster found. This should never happen!");
+            // } else {
+            //     // console.log(await stats.getProductNameAttribute()); // This call is executed remotely
+            //     logger.info(await stats.subscribeAverageMeasuredValue10Attribute(value => console.log("average10", value), 5, 30));
+            //     logger.info(await stats.subscribeAverageMeasuredValue60Attribute(value => console.log("average60", value), 5, 120));
+            // }
 
             // Or use this to wait for full remote initialization and reconnection.
             // Will only return when node is connected!
