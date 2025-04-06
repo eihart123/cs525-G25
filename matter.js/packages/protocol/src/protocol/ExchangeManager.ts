@@ -74,7 +74,7 @@ export class MessageChannel implements Channel<Message> {
     }
 
     send(message: Message, logContext?: ExchangeLogContext): Promise<void> {
-        logger.info("Message »", MessageCodec.messageDiagnostics(message, logContext));
+        logger.debug("Message »", MessageCodec.messageDiagnostics(message, logContext));
         const packet = this.session.encode(message);
         const bytes = MessageCodec.encodePacket(packet);
         if (bytes.length > this.maxPayloadSize) {
@@ -82,7 +82,7 @@ export class MessageChannel implements Channel<Message> {
                 `Matter message to send to ${this.name} is ${bytes.length}bytes long, which is larger than the maximum allowed size of ${this.maxPayloadSize}. This only works if both nodes support it.`,
             );
         }
-        logger.info(this.bytesSentOnChannel, "bytes sent on channel, of which", bytes.length, "bytes are new.");
+        logger.debug(this.bytesSentOnChannel, "bytes sent on channel, of which", bytes.length, "bytes are new.");
         this.bytesSentOnChannel += bytes.length;
 
 
