@@ -16,8 +16,10 @@ MP_DIR = "/opt/matter"
 LOCAL_SERVER_DIR = './'
 REMOTE_SERVER_DIR = f'{MP_DIR}/cs525-G25/'
 REMOTE_GROUP = 'csvm525-stu'
+GIT_REPO = "https://github.com/eihart123/cs525-G25.git"
 
 # List of servers
+CONTROLLER_SERVER = 'sp25-cs525-2501.cs.illinois.edu'
 SERVERS = [
     'sp25-cs525-2501.cs.illinois.edu',
     'sp25-cs525-2502.cs.illinois.edu',
@@ -30,42 +32,46 @@ SERVERS = [
     'sp25-cs525-2509.cs.illinois.edu',
     'sp25-cs525-2510.cs.illinois.edu',
     'sp25-cs525-2511.cs.illinois.edu',
-    'sp25-cs525-2512.cs.illinois.edu',
-    'sp25-cs525-2513.cs.illinois.edu',
-    'sp25-cs525-2514.cs.illinois.edu',
-    'sp25-cs525-2515.cs.illinois.edu',
-    'sp25-cs525-2516.cs.illinois.edu',
-    'sp25-cs525-2517.cs.illinois.edu',
-    'sp25-cs525-2518.cs.illinois.edu',
-    'sp25-cs525-2519.cs.illinois.edu',
-    'sp25-cs525-2520.cs.illinois.edu',
+    # 'sp25-cs525-2512.cs.illinois.edu',
+    # 'sp25-cs525-2513.cs.illinois.edu',
+    # 'sp25-cs525-2514.cs.illinois.edu',
+    # 'sp25-cs525-2515.cs.illinois.edu',
+    # 'sp25-cs525-2516.cs.illinois.edu',
+    # 'sp25-cs525-2517.cs.illinois.edu',
+    # 'sp25-cs525-2518.cs.illinois.edu',
+    # 'sp25-cs525-2519.cs.illinois.edu',
+    # 'sp25-cs525-2520.cs.illinois.edu',
 ]
 
 status = { server: "Waiting" for server in SERVERS }
 mutex = threading.Lock()
 
-def update_status(server, new_status):
+def update_status(server: str, new_status: str):
     """Helper function to update the status of a server"""
     with mutex:
         status[server] = new_status
         logger.debug(f"{server}: {new_status}")
 
-def stop_server(conn, server):
+def stop_server(conn, server: str):
     """Stop the server process on the remote server"""
     update_status(server, "Stopping")
-    # Check port status
-    result = conn.sudo("lsof -i:4444", warn=True)
-    if not result.failed:
-        # Port is in use, so kill the process
-        result = conn.sudo("kill -9 $(lsof -t -i:4444) && sleep 2", warn=True)
-        # Check if the process was killed
-        result = conn.sudo("lsof -i:4444", warn=True)
-        if not result.failed:
-            update_status(server, "Failed to kill existing process")
+    # killall node
+    result = conn.sudo("killall node", warn=True)
+    if result.failed:
+        # Try again for the bit
+        result = conn.sudo("killall node", warn=True)
+        if result.failed:
+            update_status(server, "Failed to stop server")
             return
+    
+    result = conn.sudo("rm -rf ~/.matter", warn=True)
+    if result.failed:
+        update_status(server, "Failed to cached metadata")
+        return
+
     update_status(server, "Stopped")
 
-def setup_server(conn, server, username):
+def setup_server(conn, server: str, username: str):
     # Check that user logged in
     result = conn.run("whoami", warn=True)
     if result.failed or result.stdout.strip() != username:
@@ -109,25 +115,40 @@ def setup_server(conn, server, username):
             update_status(server, f"Failed to set default other ACL for {MP_DIR}")
             return
 
-def build_server(conn, server):
+def build_server(conn, server: str):
     """Build the server on the remote server"""
     update_status(server, "Installing dependencies...")
-    result = conn.run(f"cd {REMOTE_SERVER_DIR} && /usr/bin/npm ci", warn=True)
+    result = conn.run(f"cd {REMOTE_SERVER_DIR}/matter.js && npm ci", warn=True)
     if result.failed:
         update_status(server, "Failed to install dependencies")
         return
 
-def start_server(conn, server):
-    """Start the server on the remote server"""
-    update_status(server, "Starting")
-    result = conn.run(f"cd {REMOTE_SERVER_DIR} && tmux new -d '/bin/sh -c \"./main server --fqdn={server}; exec bash\"'", warn=True, pty=False)
-    # Wait for the server to start
-    sleep(2)
-    result = conn.sudo("lsof -i:4444", warn=True)
+def start_root_controller(conn, server: str, with_vmb=False):
+    """Start the root controller on the remote server"""
+    update_status(server, "Starting root controller")
+    dir = 'cs525-baseline' if with_vmb else 'cs525'
+    serverFile = 'RootControllerNode.js' if with_vmb else 'ControllerNode.js'
+    result = conn.run(f"/bin/bash -c \"cd {REMOTE_SERVER_DIR}/matter.js/packages/{dir} && node ./dist/esm/${serverFile} &\"", warn=True)
     if result.failed:
-        update_status(server, "Failed to start server")
+        update_status(server, "Failed to start root controller")
         return
-    update_status(server, "Online")
+
+def startup_endnodes(conn, server: str, with_vmb=False):
+    """Start the endnodes on the remote server"""
+    update_status(server, "Starting endnodes")
+    dir = 'cs525-baseline' if with_vmb else 'cs525'
+    result = conn.run(f"cd {REMOTE_SERVER_DIR}/matter.js/packages/{dir} && ./startup.sh", warn=True)
+
+    if result.failed:
+        update_status(server, "Failed to start endnodes")
+        return
+# def start_server(conn, server):
+#     """Start the server on the remote server"""
+#     update_status(server, "Starting")
+#     result = conn.run(f"cd {REMOTE_SERVER_DIR} && tmux new -d '/bin/sh -c \"./main server --fqdn={server}; exec bash\"'", warn=True, pty=False)
+#     # Wait for the server to start
+#     sleep(2)
+#     update_status(server, "Online")
 
 def recursive_upload(conn, local_path, remote_path):
     """Recursively upload files from a local directory to a remote directory"""
@@ -146,7 +167,7 @@ def recursive_upload(conn, local_path, remote_path):
         corrected_remote_path = PurePosixPath(remote_path)
         conn.put(str(corrected_local_path), str(corrected_remote_path))
 
-def ssh_connect_and_restart(server, username, password):
+def ssh_connect_and_restart(server: str, username: str, password: str, with_vmb: bool, is_root: bool):
     """Connect to a server using SSH and restart the server"""
     try:
         update_status(server, "Connecting")
@@ -156,14 +177,20 @@ def ssh_connect_and_restart(server, username, password):
 
         setup_server(conn, server, username)
         stop_server(conn, server)
-        start_server(conn, server)
+        # start_root_controller(conn, server, with_vmb=with_vmb)
+        if is_root:
+            # start the root controller
+            start_root_controller(conn, server, with_vmb=with_vmb)
+        else:
+            startup_endnodes(conn, server, with_vmb=with_vmb)
+        # start_server(conn, server)
 
     except Exception as e:
         update_status(server, f"Error: {str(e)}")
     finally:
         conn.close()
 
-def ssh_connect_and_setup(server, username, password):
+def ssh_connect_and_setup(server: str, username: str, password: str, with_vmb: bool, is_root: bool):
     """Connect to a server using SSH and setup the server"""
     try:
         update_status(server, "Connecting")
@@ -176,48 +203,55 @@ def ssh_connect_and_setup(server, username, password):
         # Update files
         update_status(server, "Updating")
         # Check if the server directory exists and delete it if it does
-        result = conn.run(f"test -d {REMOTE_SERVER_DIR}", warn=True)
-        if not result.failed:
-            result = conn.run(f"rm -rf {REMOTE_SERVER_DIR}", warn=True)
-            if result.failed:
-                update_status(server, "Failed to delete existing server directory (rm failed)")
-                return
-            # Check if the server directory was deleted
-            result = conn.run(f"test -d {REMOTE_SERVER_DIR}", warn=True)
-            if not result.failed:
-                update_status(server, "Failed to delete existing server directory (still exists)")
-                return
+        # result = conn.run(f"test -d {REMOTE_SERVER_DIR}", warn=True)
+        # if not result.failed:
+        #     result = conn.run(f"rm -rf {REMOTE_SERVER_DIR}", warn=True)
+        #     if result.failed:
+        #         update_status(server, "Failed to delete existing server directory (rm failed)")
+        #         return
+        #     # Check if the server directory was deleted
+        #     result = conn.run(f"test -d {REMOTE_SERVER_DIR}", warn=True)
+        #     if not result.failed:
+        #         update_status(server, "Failed to delete existing server directory (still exists)")
+        #         return
         # Upload source files from local directory to remote directory
-        recursive_upload(conn, LOCAL_SERVER_DIR, REMOTE_SERVER_DIR)
+        # recursive_upload(conn, LOCAL_SERVER_DIR, REMOTE_SERVER_DIR)
 
+        # git clone the repo into the remote directory, if it does, run git pull, else git clone
+        # Check if the server directory exists 
+        result = conn.run(f"test -d {REMOTE_SERVER_DIR}", warn=True)
+            
+        if not result.failed:
+            # git pull
+            result = conn.run(f"cd {REMOTE_SERVER_DIR} && git pull", warn=True)
+            if result.failed:
+                update_status(server, "Failed to pull repository")
+                return
+        else:
+            # git clone
+            result = conn.run(f"git clone {GIT_REPO} {REMOTE_SERVER_DIR}", warn=True)
+            if result.failed:
+                update_status(server, "Failed to clone repository")
+                return
+            # Check if the server directory was created
+            result = conn.run(f"test -d {REMOTE_SERVER_DIR}", warn=True)
+            if result.failed:
+                update_status(server, "Failed to create server directory")
+                return
         build_server(conn, server)
-        start_server(conn, server)
+        # start_server(conn, server)
+        if is_root:
+            # start the root controller
+            start_root_controller(conn, server, with_vmb=with_vmb)
+        else:
+            startup_endnodes(conn, server, with_vmb=with_vmb)
 
     except Exception as e:
         update_status(server, f"Error: {str(e)}")
     finally:
         conn.close()
 
-def ssh_connect_and_test(server, username, password):
-    """Connect to a server using SSH and run the server unit tests"""
-    try:
-        update_status(server, "Connecting")
-
-        # Establish SSH connection using Fabric
-        conn = Connection(host=server, user=username, connect_kwargs={"password": password}, config=Config(overrides={'sudo': {'password': password}}))
-
-        update_status(server, "Testing")
-
-        # TODO: Run the server unit tests
-
-        update_status(server, "Success: (0/0) tests passed")
-
-    except Exception as e:
-        update_status(server, f"Error: {str(e)}")
-    finally:
-        conn.close()
-
-def ssh_connect_and_stop(server, username, password):
+def ssh_connect_and_stop(server: str, username: str, password: str, with_vmb: bool, is_root: bool):
     """Connect to a server using SSH and stop the server process"""
     try:
         update_status(server, "Connecting")
@@ -244,7 +278,7 @@ def display_status(stdscr):
 
     while True:
         stdscr.clear()
-        stdscr.addstr(0, 0, "CS 425 Server Status Monitor", curses.A_BOLD)
+        stdscr.addstr(0, 0, "CS 625 Server Status Monitor", curses.A_BOLD)
         stdscr.addstr(1, 0, "Press 'q' to quit")
 
         with mutex:
@@ -268,12 +302,11 @@ def display_status(stdscr):
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="CS 425 MP4 Deployment Script",
-        description="Deploy the MP4 server to multiple servers",
+        prog="CS 525 Deployment Script",
+        description="Deploy the Matter testbed to multiple servers",
         epilog="Default behavior: uploads the server source code, builds it, and starts the server process"
     )
     parser.add_argument("-u", "--user", type=str, help="Username for SSH login")
-    parser.add_argument("-t", "--test", action="store_true", help="Run servers in test mode")
     parser.add_argument("-k", "--kill", action="store_true", help="Just shutdown existing server processes")
     parser.add_argument("-r", "--restart", action="store_true", help="Restart the server processes")
     args = parser.parse_args()
@@ -287,13 +320,12 @@ def main():
     password = getpass("Enter your password: ")
 
     threads = []
+    with_vmb = False
 
     # Choose target action
     target_action = None
     if args.kill:
         target_action = ssh_connect_and_stop
-    elif args.test:
-        target_action = ssh_connect_and_test
     elif args.restart:
         target_action = ssh_connect_and_restart
     else:
@@ -301,7 +333,8 @@ def main():
 
     # Start a thread for each server
     for server in SERVERS:
-        thread = threading.Thread(target=target_action, args=(server, username, password))
+        is_root = server == CONTROLLER_SERVER
+        thread = threading.Thread(target=target_action, args=(server, username, password, with_vmb, is_root))
         thread.start()
         threads.append(thread)
 
