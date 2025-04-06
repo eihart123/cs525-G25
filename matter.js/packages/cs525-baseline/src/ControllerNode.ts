@@ -155,7 +155,7 @@ class ControllerNode {
                 commissioning: commissioningOptions,
                 discovery: {
                     knownAddress: { ip, port, type: "udp" },
-                    identifierData: {}
+                    identifierData: {},
                     discoveryCapabilities: {},
                 },
                 passcode: setupPin,
