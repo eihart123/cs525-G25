@@ -21,10 +21,11 @@ import { exit } from "node:process";
 
 async function main() {
     const deviceID = process.env.DEVICE_ID;
-    console.log({ deviceID });
-    if (deviceID === undefined) {
+    const port = process.env.PORT;
+    console.log({ port });
+    if (port === undefined) {
         // Exit if DEVICE_ID is not provided
-        console.error("DEVICE_ID environment variable is not set. Please set it to a valid device ID.");
+        console.error("PORT environment variable is not set. Please set it to a valid device ID.");
         return;
         // Alternatively you could fallback to a default value or handle it differently
         // const deviceID = '1'; // Fallback to a default device ID
@@ -45,7 +46,6 @@ async function main() {
         vendorId,
         productName,
         productId,
-        port,
         uniqueId,
     } = await getConfiguration(deviceID);
     /**
@@ -192,13 +192,11 @@ async function getConfiguration(deviceID: string) {
     const deviceName = `Matter test device #${deviceID}`;
     const vendorName = "matter-node.js";
     const passcode = environment.vars.number("passcode") ?? (await deviceStorage.get("passcode", 20202021));
-    const discriminator = environment.vars.number("discriminator") ?? (await deviceStorage.get("discriminator", 0 + parseInt(deviceID, 10)));
+    const discriminator = environment.vars.number("discriminator") ?? await deviceStorage.get("discriminator", 0);
     // product name / id and vendor id should match what is in the device certificate
     const vendorId = environment.vars.number("vendorid") ?? (await deviceStorage.get("vendorid", 0xfff1));
     const productName = `node-matter OnOff Temperature`;
     const productId = environment.vars.number("productid") ?? (await deviceStorage.get("productid", 0x8000));
-
-    const port = environment.vars.number("port") ?? 46000 + parseInt(deviceID, 10);
 
     const uniqueId =
         environment.vars.string("uniqueid") ?? (await deviceStorage.get("uniqueid", Time.nowMs().toString()));
@@ -222,7 +220,6 @@ async function getConfiguration(deviceID: string) {
         vendorId,
         productName,
         productId,
-        port,
         uniqueId,
     };
 }

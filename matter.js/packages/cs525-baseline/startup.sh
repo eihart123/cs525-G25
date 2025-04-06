@@ -4,11 +4,9 @@
 
 npm run build
 
-# 1000 devices
-for i in {10..14}; do
+# 20 devices
+for i in {10..29}; do
   # Try to start the server
   echo "Starting sensor $i..."
   DEVICE_ID=$i node dist/esm/SensorDeviceNode.js &
 done
-
-# killall node

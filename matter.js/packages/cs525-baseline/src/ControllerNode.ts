@@ -43,6 +43,31 @@ logger.info(
     'Use the parameter "--storage-path=NAME-OR-PATH" to specify a different storage location in this directory, use --storage-clear to start with an empty storage.',
 );
 
+const vm_addresses = [
+    {name: "vm2", ip: "fe80::250:56ff:fe8c:8777"}, // VM 2
+    {name: "vm3", ip: "fe80::250:56ff:fe8c:dc43"},
+    {name: "vm4", ip: "fe80::250:56ff:fe8c:34c3"},
+    {name: "vm5", ip: "fe80::250:56ff:fe8c:50b4"},
+    {name: "vm6", ip: "fe80::250:56ff:fe8c:bfd9"},
+    {name: "vm7", ip: "fe80::250:56ff:fe8c:69e1"},
+    {name: "vm8", ip: "fe80::250:56ff:fe8c:cc0b"},
+    {name: "vm9", ip: "fe80::250:56ff:fe8c:9744"},
+    {name: "vm10", ip: "fe80::250:56ff:fe8c:d55"},
+    {name: "vm11", ip: "fe80::250:56ff:fe8c:1ec1"},
+];
+
+const all_endnodes = vm_addresses.flatMap((vm) => {
+    const endnodes = [];
+    for (let i = 0; i < numDevices; i++) {
+        endnodes.push({
+            name: `${vm.name}-${i}`,
+            port: 5540 + i,
+        });
+    }
+    return endnodes;
+})
+
+
 class ControllerNode {
     async start() {
         Logger.level = "info";
@@ -103,27 +128,6 @@ class ControllerNode {
         };
 
         let ble = false;
-        if (environment.vars.get("ble")) {
-            ble = true;
-            const wifiSsid = environment.vars.string("ble.wifi.ssid");
-            const wifiCredentials = environment.vars.string("ble.wifi.credentials");
-            const threadNetworkName = environment.vars.string("ble.thread.networkname");
-            const threadOperationalDataset = environment.vars.string("ble.thread.operationaldataset");
-            if (wifiSsid !== undefined && wifiCredentials !== undefined) {
-                logger.info(`Registering Commissioning over BLE with WiFi: ${wifiSsid}`);
-                commissioningOptions.wifiNetwork = {
-                    wifiSsid: wifiSsid,
-                    wifiCredentials: wifiCredentials,
-                };
-            }
-            if (threadNetworkName !== undefined && threadOperationalDataset !== undefined) {
-                logger.info(`Registering Commissioning over BLE with Thread: ${threadNetworkName}`);
-                commissioningOptions.threadNetwork = {
-                    networkName: threadNetworkName,
-                    operationalDataset: threadOperationalDataset,
-                };
-            }
-        }
 
         /** Create Matter Controller Node and bind it to the Environment. */
         const commissioningController = new CommissioningController({
@@ -145,20 +149,14 @@ class ControllerNode {
         if (!commissioningController.isCommissioned()) {
           // Map to options
           var myList: Array<NodeCommissioningOptions> = [];
-          for (var i = 0; i < numDevices; i++) {
+          for (var i = 0; i < all_endnodes.length; i++) {
+            const { name, ip, port } = all_endnodes[i];
             const options: NodeCommissioningOptions = {
                 commissioning: commissioningOptions,
                 discovery: {
-                    knownAddress: ip !== undefined && port !== undefined ? { ip, port, type: "udp" } : undefined,
-                    identifierData:
-                        longDiscriminator !== undefined
-                            ? { longDiscriminator: longDiscriminator + i }
-                            : shortDiscriminator !== undefined
-                              ? { shortDiscriminator }
-                              : {},
-                    discoveryCapabilities: {
-                        ble,
-                    },
+                    knownAddress: { ip, port, type: "udp" },
+                    identifierData: {}
+                    discoveryCapabilities: {},
                 },
                 passcode: setupPin,
             };
