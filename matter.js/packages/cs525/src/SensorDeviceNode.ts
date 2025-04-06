@@ -131,9 +131,9 @@ async function main() {
      */
     server.run();
     // stop the server/quit node after 120 seconds
-    setTimeout(() => {
-        process.exit(0);
-    }, 120 * 1000); // 120 seconds
+    // setTimeout(() => {
+    //     process.exit(0);
+    // }, 120 * 1000); // 120 seconds
 }
 
 main().catch(error => console.error(error));
