@@ -128,7 +128,7 @@ def start_root_controller(conn, server: str, with_vmb=False):
     update_status(server, "Starting root controller")
     dir = 'cs525-baseline' if with_vmb else 'cs525'
     serverFile = 'RootControllerNode.js' if with_vmb else 'ControllerNode.js'
-    result = conn.run(f"/bin/bash -c \"cd {REMOTE_SERVER_DIR}/matter.js/packages/{dir} && node ./dist/esm/${serverFile} &\"", warn=True)
+    result = conn.run(f"cd {REMOTE_SERVER_DIR}/matter.js/packages/{dir} && tmux new -d 'node ./dist/esm/${serverFile}'", warn=True)
     if result.failed:
         update_status(server, "Failed to start root controller")
         return
@@ -137,7 +137,7 @@ def startup_endnodes(conn, server: str, with_vmb=False):
     """Start the endnodes on the remote server"""
     update_status(server, "Starting endnodes")
     dir = 'cs525-baseline' if with_vmb else 'cs525'
-    result = conn.run(f"cd {REMOTE_SERVER_DIR}/matter.js/packages/{dir} && ./startup.sh", warn=True)
+    result = conn.run(f"cd {REMOTE_SERVER_DIR}/matter.js/packages/{dir} && chmod +x ./startup.sh && ./startup.sh", warn=True)
 
     if result.failed:
         update_status(server, "Failed to start endnodes")

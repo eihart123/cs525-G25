@@ -8,5 +8,5 @@ npm run build
 for i in {10..29}; do
   # Try to start the server
   echo "Starting sensor $i..."
-  DEVICE_ID=$i node dist/esm/SensorDeviceNode.js &
+  DEVICE_ID=$i node dist/esm/SensorDeviceNode.js 2>&1 | cat > sensor-$i.log & 
 done
