@@ -33,11 +33,12 @@ import { NodeId, VendorId, Cluster, ClusterId, ClusterRegistry } from "@matter/t
 // import { logEndpoint } from "#main/protocol";
 import { execSync } from "node:child_process";
 import { DescriptorServer } from "@matter/node/behaviors";
+import { appendFile } from "node:fs";
 // import { Attribute, Cluster, Command, Event } from "./Cluster.js";
 const logger = Logger.get("VirtualMatterBrokerNode");
 Logger.level = "info";
 
-const NUM_DEVICES = 1;
+const NUM_DEVICES = 5;
 
 const environment = Environment.default;
 const storageService = environment.get(StorageService);
@@ -226,7 +227,7 @@ class VirtualMatterBrokerNode {
 
     async pairNode(i: number) {
         let longDiscriminator, setupPin;
-        longDiscriminator = await this.#controllerStorage.get("longDiscriminator", 0);
+        longDiscriminator = await this.#controllerStorage.get("longDiscriminator", 10);
         if (longDiscriminator > 4095) throw new Error("Discriminator value must be less than 4096");
         setupPin = await this.#controllerStorage.get("pin", 20202021);
 
@@ -478,6 +479,21 @@ class VirtualMatterBrokerNode {
         // console.log(`new PartsList: [${await (descriptor?.attributes.partsList.get())}]`);
         // Compose
     }
+
+    async log_results() {
+        const totalIn = Object.entries(this.#controller?.controllerInstance?.exchangeManager?.transmissionMetadata || {}).reduce((acc, [key, value]) => {
+            return acc + value;
+        }, 0);
+        const totalOut = Object.entries(this.#controller?.controllerInstance?.exchangeManager?.transmissionMetadataOut || {}).reduce((acc, [key, value]) => {
+            return acc + value;
+        }, 0);
+
+        const data = `${Date.now()}, in ${totalIn}, out ${totalOut}\n`;
+        appendFile('results_updated-bridge.txt', data, (err) => {
+            if (err) throw err;
+            logger.info(`Total in: ${totalIn}, Total out: ${totalOut}`);
+        });
+    }
 }
 
 async function main() {
@@ -485,6 +501,10 @@ async function main() {
     const vmb = new VirtualMatterBrokerNode();
     // Start the VMB with a unique instance node ID
     await vmb.start("something-unique");
+
+    setInterval(() => {
+        vmb.log_results()
+    }, 5000);
 
     // Pair each node with the VMB
     for (let i = 0; i < NUM_DEVICES; i++) {

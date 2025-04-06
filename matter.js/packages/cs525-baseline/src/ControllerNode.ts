@@ -19,9 +19,10 @@ import { ManualPairingCodeCodec, NodeId } from "@matter/main/types";
 import { NodeJsBle } from "@matter/nodejs-ble";
 import { CommissioningController, NodeCommissioningOptions } from "@project-chip/matter.js";
 import { NodeStates } from "@project-chip/matter.js/device";
+import { appendFile } from 'fs';
 
 const logger = Logger.get("Controller");
-const numDevices = 1; // Number of devices to commission
+const numDevices = 15; // Number of devices to commission
 
 const environment = Environment.default;
 
@@ -293,8 +294,25 @@ class ControllerNode {
                 const maxInterval = 10
                 await temperatureMeasurement.subscribeMeasuredValueAttribute((value: number | null) => {
                   console.log(`Device ${device.number} Temperature Measurement subscription to: ${value}`);
+
+                    const totalIn = Object.entries(commissioningController.controllerInstance?.exchangeManager.transmissionMetadata || {}).reduce((acc, [key, value]) => {
+                        return acc + value;
+                    }, 0);
+                    const totalOut = Object.entries(commissioningController.controllerInstance?.exchangeManager.transmissionMetadataOut || {}).reduce((acc, [key, value]) => {
+                        return acc + value;
+                    }, 0);
+
+                    const data = `${Date.now()}, in ${totalIn}, out ${totalOut}\n`;
+                    appendFile('results_baseline.txt', data, (err) => {
+                      if (err) throw err;
+                      console.log('The file has been saved!');
+                    });
+
                   console.log(
                     commissioningController.controllerInstance?.exchangeManager.transmissionMetadata
+                  )
+                  console.log(
+                    commissioningController.controllerInstance?.exchangeManager.transmissionMetadataOut
                   )
                 }, minInterval, maxInterval)
                 // attributes.measuredValue

@@ -42,6 +42,7 @@ export class ChannelNotConnectedError extends MatterError {}
 export class MessageChannel implements Channel<Message> {
     public closed = false;
     #closeCallback?: () => Promise<void>;
+    bytesSentOnChannel: number = 0;
 
     constructor(
         readonly channel: Channel<Uint8Array>,
@@ -73,7 +74,7 @@ export class MessageChannel implements Channel<Message> {
     }
 
     send(message: Message, logContext?: ExchangeLogContext): Promise<void> {
-        logger.debug("Message »", MessageCodec.messageDiagnostics(message, logContext));
+        logger.info("Message »", MessageCodec.messageDiagnostics(message, logContext));
         const packet = this.session.encode(message);
         const bytes = MessageCodec.encodePacket(packet);
         if (bytes.length > this.maxPayloadSize) {
@@ -81,6 +82,10 @@ export class MessageChannel implements Channel<Message> {
                 `Matter message to send to ${this.name} is ${bytes.length}bytes long, which is larger than the maximum allowed size of ${this.maxPayloadSize}. This only works if both nodes support it.`,
             );
         }
+        logger.info(this.bytesSentOnChannel, "bytes sent on channel, of which", bytes.length, "bytes are new.");
+        this.bytesSentOnChannel += bytes.length;
+
+
 
         return this.channel.send(bytes);
     }
@@ -119,6 +124,8 @@ export class ExchangeManager {
     readonly #closers = new Set<Promise<void>>();
     readonly #observers = new ObserverGroup(this);
     transmissionMetadata : Record<string, number> = {};
+    // Out will still be identified by the source channel.
+    transmissionMetadataOut : Record<string, number> = {};
     #closing = false;
 
     constructor(context: ExchangeManagerContext) {
@@ -253,6 +260,8 @@ export class ExchangeManager {
             ? message.payloadHeader.exchangeId
             : message.payloadHeader.exchangeId | 0x10000;
         let exchange = this.#exchanges.get(exchangeIndex);
+        // this.channel.bytesSentOnChannel
+        
 
         if (
             exchange !== undefined &&
@@ -263,6 +272,7 @@ export class ExchangeManager {
 
         if (exchange !== undefined) {
             await exchange.onMessageReceived(message, isDuplicate);
+            this.transmissionMetadataOut[channel.name] = exchange?.channel.bytesSentOnChannel
         } else {
             if (this.#closing) return;
             if (session.closingAfterExchangeFinished) {
@@ -291,6 +301,7 @@ export class ExchangeManager {
                 this.#addExchange(exchangeIndex, exchange);
                 await exchange.onMessageReceived(message);
                 await protocolHandler.onNewExchange(exchange, message);
+                this.transmissionMetadataOut[channel.name] = exchange?.channel.bytesSentOnChannel
             } else if (message.payloadHeader.requiresAck) {
                 const exchange = MessageExchange.fromInitialMessage(
                     this.#messageExchangeContextFor(await this.#channelManager.getOrCreateChannel(channel, session)),
@@ -304,6 +315,7 @@ export class ExchangeManager {
                 logger.debug(
                     `Ignoring unsolicited message ${messageId} for protocol ${message.payloadHeader.protocolId} on channel ${channel.name}`,
                 );
+                this.transmissionMetadataOut[channel.name] = exchange?.channel.bytesSentOnChannel
             } else {
                 if (protocolHandler === undefined) {
                     throw new MatterFlowError(`Unsupported protocol ${message.payloadHeader.protocolId}`);

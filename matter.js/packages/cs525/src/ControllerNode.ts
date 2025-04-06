@@ -18,6 +18,7 @@ import { ManualPairingCodeCodec, NodeId } from "@matter/main/types";
 import { CommissioningController, NodeCommissioningOptions } from "@project-chip/matter.js";
 import { NodeStates } from "@project-chip/matter.js/device";
 import { AggregatedStatsCluster } from "@matter/types/clusters/aggregated-stats";
+import { appendFile } from "node:fs";
 
 const logger = Logger.get("Controller");
 
@@ -31,6 +32,8 @@ logger.info(
 );
 
 class ControllerNode {
+    controller: CommissioningController | undefined = undefined;
+
     async start() {
         logger.info(`node-matter Controller started`);
 
@@ -97,6 +100,7 @@ class ControllerNode {
             autoConnect: false, // Do not auto connect to the commissioned nodes
             adminFabricLabel,
         });
+        this.controller = commissioningController;
 
         /** Start the Matter Controller Node */
         await commissioningController.start();
@@ -305,9 +309,27 @@ class ControllerNode {
             }
         } finally {
             //await matterServer.close(); // Comment out when subscribes are used, else the connection will be closed
-            setTimeout(() => process.exit(0), 1000000);
         }
     }
 }
 
-new ControllerNode().start().catch(error => logger.error(error));
+const node = new ControllerNode()
+node.start().catch(error => logger.error(error));
+setInterval(() => {
+    const totalIn = Object.entries(node.controller?.controllerInstance?.exchangeManager.transmissionMetadata || {}).reduce((acc, [key, value]) => {
+        return acc + value;
+    }, 0);
+    const totalOut = Object.entries(node.controller?.controllerInstance?.exchangeManager.transmissionMetadataOut || {}).reduce((acc, [key, value]) => {
+        return acc + value;
+    }, 0);
+
+    const data = `${Date.now()}, in ${totalIn}, out ${totalOut}\n`;
+    appendFile('results_updated-root.txt', data, (err) => {
+        if (err) throw err;
+        logger.info(`Total in: ${totalIn}, Total out: ${totalOut}`);
+    });
+    // const in_bw = node.controller?.controllerInstance?.exchangeManager.transmissionMetadata;
+    // logger.info("IN => ", in_bw);
+    // const out_bw = node.controller?.controllerInstance?.exchangeManager.transmissionMetadataOut;
+    // logger.info("OUT => ", out_bw);
+}, 5000);

@@ -129,7 +129,11 @@ async function main() {
      * offline again because we do not need anything more here. See the Full example for other starting options.
      * The QR Code is printed automatically.
      */
-    await server.run();
+    server.run();
+    // stop the server/quit node after 120 seconds
+    setTimeout(() => {
+        process.exit(0);
+    }, 120 * 1000); // 120 seconds
 }
 
 main().catch(error => console.error(error));
