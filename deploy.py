@@ -123,25 +123,27 @@ def build_server(conn, server: str):
         update_status(server, "Failed to install dependencies")
         return
 
-def start_root_controller(conn, server: str, with_vmb=False):
+def start_root_controller(conn, server: str, with_vmb: bool):
     """Start the root controller on the remote server"""
     update_status(server, "Starting root controller")
-    dir = 'cs525-baseline' if with_vmb else 'cs525'
+    dir = 'cs525' if with_vmb else 'cs525-baseline'
     serverFile = 'RootControllerNode.js' if with_vmb else 'ControllerNode.js'
     result = conn.run(f"cd {REMOTE_SERVER_DIR}/matter.js/packages/{dir} && tmux new -d 'node ./dist/esm/${serverFile}'", warn=True)
     if result.failed:
         update_status(server, "Failed to start root controller")
         return
+    update_status(server, "Online")
 
-def startup_endnodes(conn, server: str, with_vmb=False):
+def startup_endnodes(conn, server: str, with_vmb: bool):
     """Start the endnodes on the remote server"""
     update_status(server, "Starting endnodes")
-    dir = 'cs525-baseline' if with_vmb else 'cs525'
+    dir = 'cs525' if with_vmb else 'cs525-baseline'
     result = conn.run(f"cd {REMOTE_SERVER_DIR}/matter.js/packages/{dir} && chmod +x ./startup.sh && ./startup.sh", warn=True)
 
     if result.failed:
         update_status(server, "Failed to start endnodes")
         return
+    update_status(server, "Online")
 # def start_server(conn, server):
 #     """Start the server on the remote server"""
 #     update_status(server, "Starting")
@@ -223,7 +225,7 @@ def ssh_connect_and_setup(server: str, username: str, password: str, with_vmb: b
             
         if not result.failed:
             # git pull
-            result = conn.run(f"cd {REMOTE_SERVER_DIR} && git pull", warn=True)
+            result = conn.run(f"cd {REMOTE_SERVER_DIR} && git reset --hard HEAD && git pull", warn=True)
             if result.failed:
                 update_status(server, "Failed to pull repository")
                 return
@@ -309,6 +311,7 @@ def main():
     parser.add_argument("-u", "--user", type=str, help="Username for SSH login")
     parser.add_argument("-k", "--kill", action="store_true", help="Just shutdown existing server processes")
     parser.add_argument("-r", "--restart", action="store_true", help="Restart the server processes")
+    parser.add_argument("-v", "--vmb", action="store_true", help="Use VMB version of the server")
     args = parser.parse_args()
 
     default_username = args.user
@@ -320,7 +323,7 @@ def main():
     password = getpass("Enter your password: ")
 
     threads = []
-    with_vmb = False
+    with_vmb = args.vmb
 
     # Choose target action
     target_action = None
