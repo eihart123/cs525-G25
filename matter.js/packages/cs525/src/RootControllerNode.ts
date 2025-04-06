@@ -120,9 +120,13 @@ class RootControllerNode {
             },
             passcode: setupPin,
         };
-        const nodeId = await this.controller?.commissionNode(options, { connectNodeAfterCommissioning: false });
-        if (!nodeId) {
-            throw new Error(`Failed to commission node ${name}`);
+        let nodeId: NodeId | undefined = undefined;
+        while (nodeId === undefined) {
+            try {
+                nodeId = await this.controller?.commissionNode(options, { connectNodeAfterCommissioning: false });
+            } catch (error) {
+                logger.error(`Error commissioning node ${name}: ${error}`);
+            }
         }
         logger.debug(`Commissioning done for ${name}, assigned nodeID: ${nodeId}`);
         await this.pairNode(nodeId, name);
