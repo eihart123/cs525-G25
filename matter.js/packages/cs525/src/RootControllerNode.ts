@@ -190,7 +190,6 @@ class RootControllerNode {
             await node.events.initialized;
         }
 
-        node.logStructure()
         const rootEndpoint = node.getRootEndpoint()
         const endpoints = rootEndpoint?.getChildEndpoints() ?? [];
         for (const child of endpoints) {

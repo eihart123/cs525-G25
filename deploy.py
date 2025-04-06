@@ -22,16 +22,16 @@ GIT_REPO = "https://github.com/eihart123/cs525-G25.git"
 CONTROLLER_SERVER = 'sp25-cs525-2501.cs.illinois.edu'
 SERVERS = [
     'sp25-cs525-2501.cs.illinois.edu',
-    'sp25-cs525-2502.cs.illinois.edu',
-    'sp25-cs525-2503.cs.illinois.edu',
-    'sp25-cs525-2504.cs.illinois.edu',
-    'sp25-cs525-2505.cs.illinois.edu',
-    'sp25-cs525-2506.cs.illinois.edu',
-    'sp25-cs525-2507.cs.illinois.edu',
-    'sp25-cs525-2508.cs.illinois.edu',
-    'sp25-cs525-2509.cs.illinois.edu',
-    'sp25-cs525-2510.cs.illinois.edu',
-    'sp25-cs525-2511.cs.illinois.edu',
+    # 'sp25-cs525-2502.cs.illinois.edu',
+    # 'sp25-cs525-2503.cs.illinois.edu',
+    # 'sp25-cs525-2504.cs.illinois.edu',
+    # 'sp25-cs525-2505.cs.illinois.edu',
+    # 'sp25-cs525-2506.cs.illinois.edu',
+    # 'sp25-cs525-2507.cs.illinois.edu',
+    # 'sp25-cs525-2508.cs.illinois.edu',
+    # 'sp25-cs525-2509.cs.illinois.edu',
+    # 'sp25-cs525-2510.cs.illinois.edu',
+    # 'sp25-cs525-2511.cs.illinois.edu',
     # 'sp25-cs525-2512.cs.illinois.edu',
     # 'sp25-cs525-2513.cs.illinois.edu',
     # 'sp25-cs525-2514.cs.illinois.edu',
@@ -118,7 +118,7 @@ def setup_server(conn, server: str, username: str):
 def build_server(conn, server: str):
     """Build the server on the remote server"""
     update_status(server, "Installing dependencies...")
-    result = conn.run(f"cd {REMOTE_SERVER_DIR}/matter.js && npm ci", warn=True)
+    result = conn.run(f"cd {REMOTE_SERVER_DIR}/matter.js && npm ci && npm run build", warn=True)
     if result.failed:
         update_status(server, "Failed to install dependencies")
         return
