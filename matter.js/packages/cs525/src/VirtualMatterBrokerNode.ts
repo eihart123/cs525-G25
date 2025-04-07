@@ -43,7 +43,7 @@ const NUM_DEVICES = 5;
 const environment = Environment.default;
 const storageService = environment.get(StorageService);
 
-console.log(`Storage location: ${storageService.location} (Directory)`);
+logger.info(`Storage location: ${storageService.location} (Directory)`);
 
 // The Virtual Matter Broker (VMB) is a Matter device that acts as a bridge
 // between two Matter networks. On the south side, it acts as a Matter controller
@@ -215,7 +215,7 @@ class VirtualMatterBrokerNode {
 
         // Setup a timer to recalculate aggregates
         for (const length of AggregateIntervals) {
-            console.log(`Setting up interval for ${length} seconds`);
+            logger.debug(`Setting up interval for ${length} seconds`);
             const interval = parseInt(length)
             this.#lastIntervalFired[length] = Date.now()
             setInterval(async () => {
@@ -262,7 +262,7 @@ class VirtualMatterBrokerNode {
          */
 
         const now = Date.now();
-        console.log(this.#aggregatorData)
+        logger.debug(this.#aggregatorData)
         // attribute: [{ sum: XXX, endpointId: YYY }]
         const dataFilteredByInterval: Record<string, { sum: number, endpointId: string }[]> = {}
         for (const [key, value] of Object.entries(this.#aggregatorData)) {
@@ -328,17 +328,17 @@ class VirtualMatterBrokerNode {
         // Query the original node for all its endpoints
         // (await this.#controller.getNode(nodeId)).getDevices()
         const commissionedNodes = this.#controller.getCommissionedNodes()
-        console.log(`Commissioned nodes: [${commissionedNodes}]`);
+        // logger.debug(`Commissioned nodes: [${commissionedNodes}]`);
         const details = this.#controller.getCommissionedNodesDetails()
         const detailsForNode = details.find((node) => node.nodeId === nodeId);
         if (detailsForNode === undefined) {
             throw new Error("Node not found in commissioned nodes details");
         }
-        console.log(`Commissioned nodes details: ${Diagnostic.json(details)}`);
-        console.log(detailsForNode.advertisedName);
+        logger.debug(`Commissioned nodes details: ${Diagnostic.json(details)}`);
+        logger.debug(detailsForNode.advertisedName);
 
         const node = await this.#controller.getNode(nodeId);
-        console.log(`Node: ${Diagnostic.json(node)}`);
+        logger.debug(`Node: ${Diagnostic.json(node)}`);
 
         // Create a "proxy" endpoint for the node
         const proxy_endpoint = new Endpoint(
@@ -372,7 +372,7 @@ class VirtualMatterBrokerNode {
             );
          */
         node.events.attributeChanged.on(async ({ path: { clusterId, endpointId, attributeName }, value }) => {
-            console.log(
+            logger.debug(
                 `attributeChangedCallback ${nodeId}: Attribute ${endpointId}/${clusterId}/${attributeName} changed to ${Logger.toJSON(
                     value,
                 )}`,
@@ -401,12 +401,12 @@ class VirtualMatterBrokerNode {
             // This is the attribute we got from the event
             const clusterPlusAttribute = `${cluster.name}.${attributeName}`
 
-            logger.info(`Cluster: ${cluster.name}, Attribute: ${attributeName}, Value: ${value}`)
-            logger.info(`ClusterPlusAttribute: ${clusterPlusAttribute}`)
-            logger.info(`AggregatedAttributes: ${aggregatedAttributes}`)
+            logger.debug(`Cluster: ${cluster.name}, Attribute: ${attributeName}, Value: ${value}`)
+            logger.debug(`ClusterPlusAttribute: ${clusterPlusAttribute}`)
+            logger.debug(`AggregatedAttributes: ${aggregatedAttributes}`)
 
             if (aggregatedAttributes.includes(clusterPlusAttribute)) {
-                logger.info(`${clusterPlusAttribute} matched an aggregated Attribute, updating tracked metadata`)
+                logger.debug(`${clusterPlusAttribute} matched an aggregated Attribute, updating tracked metadata`)
                 if (!Object.hasOwn(this.#aggregatorData, clusterPlusAttribute)) {
                     const empty: Record<string, MoreDatapoint> = {}
                     this.#aggregatorData[clusterPlusAttribute] = empty;
@@ -429,7 +429,7 @@ class VirtualMatterBrokerNode {
                     }
                 }
             } else {
-                logger.info(`${clusterPlusAttribute} did not match an aggregated Attribute`)
+                logger.debug(`${clusterPlusAttribute} did not match an aggregated Attribute`)
             }
 
             // Update the proxy endpoint
@@ -441,7 +441,7 @@ class VirtualMatterBrokerNode {
                     }
                 })
             } else {
-                logger.info(`Cluster ${cluster.name} is not proxied, not updating proxy endpoint`)
+                logger.debug(`Cluster ${cluster.name} is not proxied, not updating proxy endpoint`)
             }
         });
 

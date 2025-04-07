@@ -61,6 +61,7 @@ const all_endnodes = vm_addresses.flatMap((vm) => {
     for (let i = 0; i < numDevices; i++) {
         endnodes.push({
             name: `${vm.name}-${i}`,
+            ip: vm.ip,
             port: 5540 + i,
         });
     }

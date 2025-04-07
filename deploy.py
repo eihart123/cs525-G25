@@ -21,17 +21,17 @@ GIT_REPO = "https://github.com/eihart123/cs525-G25.git"
 # List of servers
 CONTROLLER_SERVER = 'sp25-cs525-2501.cs.illinois.edu'
 SERVERS = [
-    'sp25-cs525-2501.cs.illinois.edu',
-    # 'sp25-cs525-2502.cs.illinois.edu',
-    # 'sp25-cs525-2503.cs.illinois.edu',
-    # 'sp25-cs525-2504.cs.illinois.edu',
-    # 'sp25-cs525-2505.cs.illinois.edu',
-    # 'sp25-cs525-2506.cs.illinois.edu',
-    # 'sp25-cs525-2507.cs.illinois.edu',
-    # 'sp25-cs525-2508.cs.illinois.edu',
-    # 'sp25-cs525-2509.cs.illinois.edu',
-    # 'sp25-cs525-2510.cs.illinois.edu',
-    # 'sp25-cs525-2511.cs.illinois.edu',
+    # 'sp25-cs525-2501.cs.illinois.edu',
+    'sp25-cs525-2502.cs.illinois.edu',
+    'sp25-cs525-2503.cs.illinois.edu',
+    'sp25-cs525-2504.cs.illinois.edu',
+    'sp25-cs525-2505.cs.illinois.edu',
+    'sp25-cs525-2506.cs.illinois.edu',
+    'sp25-cs525-2507.cs.illinois.edu',
+    'sp25-cs525-2508.cs.illinois.edu',
+    'sp25-cs525-2509.cs.illinois.edu',
+    'sp25-cs525-2510.cs.illinois.edu',
+    'sp25-cs525-2511.cs.illinois.edu',
     # 'sp25-cs525-2512.cs.illinois.edu',
     # 'sp25-cs525-2513.cs.illinois.edu',
     # 'sp25-cs525-2514.cs.illinois.edu',
@@ -128,7 +128,7 @@ def start_root_controller(conn, server: str, with_vmb: bool):
     update_status(server, "Starting root controller")
     dir = 'cs525' if with_vmb else 'cs525-baseline'
     serverFile = 'RootControllerNode.js' if with_vmb else 'ControllerNode.js'
-    result = conn.run(f"cd {REMOTE_SERVER_DIR}/matter.js/packages/{dir} && tmux new -d 'node ./dist/esm/${serverFile}'", warn=True)
+    result = conn.run(f"cd {REMOTE_SERVER_DIR}/matter.js/packages/{dir} && tmux new -d 'node ./dist/esm/${serverFile} -- --storage-clear'", warn=True)
     if result.failed:
         update_status(server, "Failed to start root controller")
         return
