@@ -1,4 +1,5 @@
 node_modules
+.venv/
 matter.js/chip-testing/build/
 matter.js/chip-testing/dist/
 matter.js/codegen/build/
