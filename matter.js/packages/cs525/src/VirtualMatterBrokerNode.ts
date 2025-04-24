@@ -25,8 +25,8 @@ import { BridgedDeviceBasicInformationServer } from "@matter/node/behaviors/brid
 import { TemperatureSensorDevice } from "@matter/node/devices";
 
 import { Diagnostic, Environment, Logger, StorageService, StorageContext, StorageManager, Time } from "@matter/main";
-import { DescriptorCluster, GeneralCommissioning } from "@matter/main/clusters";
-import { AttributeList } from "@matter/types/clusters/aggregated-stats";
+import { BridgedDeviceBasicInformationCluster, TemperatureMeasurementCluster, DescriptorCluster, GeneralCommissioning } from "@matter/main/clusters";
+import { AggregatedStatsCluster, AttributeList } from "@matter/types/clusters/aggregated-stats";
 import { type AggregatedRecord, AggregateInterval, AggregateIntervals, AggregatedAttribute } from "@matter/types/clusters/aggregated-stats";
 
 import { NodeId, VendorId, Cluster, ClusterId, ClusterRegistry } from "@matter/types";
@@ -252,7 +252,7 @@ class VirtualMatterBrokerNode {
         // Connect the node
         const node = await this.#controller.getNode(nodeId);
         if (node && !node.isConnected) {
-            node.connect();
+            node.connect({ autoSubscribe: false });
         }
     }
 
@@ -340,37 +340,49 @@ class VirtualMatterBrokerNode {
         const node = await this.#controller.getNode(nodeId);
         logger.debug(`Node: ${Diagnostic.json(node)}`);
 
-        // Create a "proxy" endpoint for the node
-        const proxy_endpoint = new Endpoint(
-            TemperatureSensorDevice.with(BridgedDeviceBasicInformationServer),
-            {
-                id: `ple-${nodeId}`,
-                bridgedDeviceBasicInformation: {
-                    nodeLabel: detailsForNode.advertisedName, // Main end user name for the device
-                    productName: detailsForNode.advertisedName,
-                    productLabel: detailsForNode.advertisedName,
-                    serialNumber: `node-matter-${nodeId}`,
-                    reachable: true,
-                },
+        // Iterate over the endpoints of the node
+        // For each endpoint, iterate over clusters, see if the cluster is a supported cluster that we want to proxy, or is a BridgedDeviceBasicInformation cluster
+        const rootEndpoint = node.getRootEndpoint()
+        const endpoints = rootEndpoint?.getChildEndpoints() ?? [];
+        for (const child of endpoints) {
+            logger.debug(`Child endpoint "${child.name}" found with type: ${child.deviceType}`);
+            const aggregatedStats = child.getClusterClient(AggregatedStatsCluster);
+            if (aggregatedStats) {
+                logger.info(`Child ${child.number} supports Aggregated Stats`);
+                // logger.info(await aggregatedStats.subscribeAverageMeasuredValue10Attribute(value => console.log(`${name}.average10 = ${value}`), 5, 30));
+                // logger.info(await aggregatedStats.subscribeAverageMeasuredValue60Attribute(value => console.log(`${name}.average60 = ${value}`), 5, 120));
             }
-        );
+            const bridgedDeviceBasicInformation = child.getClusterClient(BridgedDeviceBasicInformationCluster);
+            if (bridgedDeviceBasicInformation) {
+                logger.info(`Child ${child.number} supports BridgedDeviceBasicInformation`);
+            }
+            const temperatureSensor = child.getClusterClient(TemperatureMeasurementCluster);
+            if (temperatureSensor) {
+                logger.info(`Child ${child.number} supports TemperatureMeasurement`);
+                // Create a "proxy" endpoint for the temperature sensor
+                const proxy_endpoint = new Endpoint(
+                    TemperatureSensorDevice.with(BridgedDeviceBasicInformationServer),
+                    {
+                        id: `ple-${nodeId}`,
+                        bridgedDeviceBasicInformation: {
+                            nodeLabel: detailsForNode.advertisedName, // Main end user name for the device
+                            productName: detailsForNode.advertisedName,
+                            productLabel: detailsForNode.advertisedName,
+                            serialNumber: `node-matter-${nodeId}`,
+                            reachable: true,
+                        },
+                    }
+                );
 
-        // Add the proxy endpoint to the aggregator endpoint
-        // This allows visibility of the proxy endpoint on the north side of the bridge,
-        // which is technically visibility of the south node
-        await this.#aggregator.add(proxy_endpoint);
+                // Add the proxy endpoint to the aggregator endpoint
+                // This allows visibility of the proxy endpoint on the north side of the bridge,
+                // which is technically visibility of the south node
+                await this.#aggregator.add(proxy_endpoint);
+            }
+        }
 
-        // Add handler on south controller so that when a south node has an
-        // attribute changed, it will update the proxy endpoint on the north side
-        /** 
-        node.events.eventTriggered.on(({ path: { nodeId, clusterId, endpointId, eventName }, events }) =>
-                console.log(
-                    `eventTriggeredCallback ${nodeId}: Event ${endpointId}/${clusterId}/${eventName} triggered with ${Logger.toJSON(
-                        events,
-                    )}`,
-                ),
-            );
-         */
+        // TODO: This may need to be moved after connecting??
+        // TODO: Subscribe to aggregated stats ONLY, we turned off autoSubscribe above
         node.events.attributeChanged.on(async ({ path: { clusterId, endpointId, attributeName }, value }) => {
             logger.debug(
                 `attributeChangedCallback ${nodeId}: Attribute ${endpointId}/${clusterId}/${attributeName} changed to ${Logger.toJSON(
@@ -386,6 +398,7 @@ class VirtualMatterBrokerNode {
             }
             const clusterNameProperty = cluster.name.charAt(0).toLowerCase() + cluster.name.slice(1)
             const proxiedClusters = [
+                'AggregatedStats', // TODO: Handle this
                 'TemperatureMeasurement'
             ]
 
