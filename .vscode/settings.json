@@ -1,0 +1,5 @@
+{
+  "[python][json][jsonc]": {
+    "editor.formatOnSave": true
+  }
+}

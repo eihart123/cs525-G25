@@ -2,36 +2,40 @@ import argparse
 import curses
 import logging
 import os
+import re
 import threading
 from fabric import Connection, Config
+from invoke.watchers import StreamWatcher
+
 from getpass import getpass
 from pathlib import Path, PurePosixPath
 from time import sleep
+from dotenv import load_dotenv
 
+load_dotenv()
 # logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Options
 MP_DIR = "/opt/matter"
-LOCAL_SERVER_DIR = './'
-REMOTE_SERVER_DIR = f'{MP_DIR}/cs525-G25/'
-REMOTE_GROUP = 'csvm525-stu'
+LOCAL_SERVER_DIR = "./"
+REMOTE_SERVER_DIR = f"{MP_DIR}/cs525-G25/"
+REMOTE_GROUP = "csvm525-stu"
 GIT_REPO = "https://github.com/eihart123/cs525-G25.git"
-
 # List of servers
-CONTROLLER_SERVER = 'sp25-cs525-2501.cs.illinois.edu'
+CONTROLLER_SERVER = "sp25-cs525-2501.cs.illinois.edu"
 SERVERS = [
-    # 'sp25-cs525-2501.cs.illinois.edu',
-    'sp25-cs525-2502.cs.illinois.edu',
-    'sp25-cs525-2503.cs.illinois.edu',
-    'sp25-cs525-2504.cs.illinois.edu',
-    'sp25-cs525-2505.cs.illinois.edu',
-    'sp25-cs525-2506.cs.illinois.edu',
-    'sp25-cs525-2507.cs.illinois.edu',
-    'sp25-cs525-2508.cs.illinois.edu',
-    'sp25-cs525-2509.cs.illinois.edu',
-    'sp25-cs525-2510.cs.illinois.edu',
-    'sp25-cs525-2511.cs.illinois.edu',
+    "sp25-cs525-2501.cs.illinois.edu",
+    "sp25-cs525-2502.cs.illinois.edu",
+    "sp25-cs525-2503.cs.illinois.edu",
+    "sp25-cs525-2504.cs.illinois.edu",
+    # 'sp25-cs525-2505.cs.illinois.edu',
+    # 'sp25-cs525-2506.cs.illinois.edu',
+    # 'sp25-cs525-2507.cs.illinois.edu',
+    # 'sp25-cs525-2508.cs.illinois.edu',
+    # 'sp25-cs525-2509.cs.illinois.edu',
+    # 'sp25-cs525-2510.cs.illinois.edu',
+    # 'sp25-cs525-2511.cs.illinois.edu',
     # 'sp25-cs525-2512.cs.illinois.edu',
     # 'sp25-cs525-2513.cs.illinois.edu',
     # 'sp25-cs525-2514.cs.illinois.edu',
@@ -43,16 +47,18 @@ SERVERS = [
     # 'sp25-cs525-2520.cs.illinois.edu',
 ]
 
-status = { server: "Waiting" for server in SERVERS }
+status = {server: {"msg": "Waiting"} for server in SERVERS}
 mutex = threading.Lock()
+
 
 def update_status(server: str, new_status: str):
     """Helper function to update the status of a server"""
     with mutex:
-        status[server] = new_status
+        status[server]["msg"] = new_status
         logger.debug(f"{server}: {new_status}")
 
-def stop_server(conn, server: str):
+
+def stop_server(conn: Connection, server: str):
     """Stop the server process on the remote server"""
     update_status(server, "Stopping")
     # killall node
@@ -63,7 +69,7 @@ def stop_server(conn, server: str):
         if result.failed:
             update_status(server, "Failed to stop server")
             return
-    
+
     result = conn.sudo("rm -rf ~/.matter", warn=True)
     if result.failed:
         update_status(server, "Failed to cached metadata")
@@ -71,7 +77,8 @@ def stop_server(conn, server: str):
 
     update_status(server, "Stopped")
 
-def setup_server(conn, server: str, username: str):
+
+def setup_server(conn: Connection, server: str, username: str):
     # Check that user logged in
     result = conn.run("whoami", warn=True)
     if result.failed or result.stdout.strip() != username:
@@ -115,35 +122,48 @@ def setup_server(conn, server: str, username: str):
             update_status(server, f"Failed to set default other ACL for {MP_DIR}")
             return
 
-def build_server(conn, server: str):
+
+def build_server(conn: Connection, server: str):
     """Build the server on the remote server"""
     update_status(server, "Installing dependencies...")
-    result = conn.run(f"cd {REMOTE_SERVER_DIR}/matter.js && npm ci && npm run build", warn=True)
+    result = conn.run(
+        f"cd {REMOTE_SERVER_DIR}/matter.js && npm ci && npm run build", warn=True
+    )
     if result.failed:
         update_status(server, "Failed to install dependencies")
         return
 
-def start_root_controller(conn, server: str, with_vmb: bool):
+
+def start_root_controller(conn: Connection, server: str, with_vmb: bool):
     """Start the root controller on the remote server"""
     update_status(server, "Starting root controller")
-    dir = 'cs525' if with_vmb else 'cs525-baseline'
-    serverFile = 'RootControllerNode.js' if with_vmb else 'ControllerNode.js'
-    result = conn.run(f"cd {REMOTE_SERVER_DIR}/matter.js/packages/{dir} && tmux new -d 'node ./dist/esm/${serverFile} -- --storage-clear'", warn=True)
+    dir = "cs525" if with_vmb else "cs525-baseline"
+    serverFile = "RootControllerNode.js" if with_vmb else "ControllerNode.js"
+    result = conn.run(
+        f"cd {REMOTE_SERVER_DIR}/matter.js/packages/{dir} && tmux new -d 'node ./dist/esm/${serverFile} -- --storage-clear'",
+        warn=True,
+    )
     if result.failed:
         update_status(server, "Failed to start root controller")
         return
     update_status(server, "Online")
 
-def startup_endnodes(conn, server: str, with_vmb: bool):
+
+def startup_endnodes(conn: Connection, server: str, with_vmb: bool):
     """Start the endnodes on the remote server"""
     update_status(server, "Starting endnodes")
-    dir = 'cs525' if with_vmb else 'cs525-baseline'
-    result = conn.run(f"cd {REMOTE_SERVER_DIR}/matter.js/packages/{dir} && chmod +x ./startup.sh && ./startup.sh", warn=True)
+    dir = "cs525" if with_vmb else "cs525-baseline"
+    result = conn.run(
+        f"cd {REMOTE_SERVER_DIR}/matter.js/packages/{dir} && chmod +x ./startup.sh && ./startup.sh",
+        warn=True,
+    )
 
     if result.failed:
         update_status(server, "Failed to start endnodes")
         return
     update_status(server, "Online")
+
+
 # def start_server(conn, server):
 #     """Start the server on the remote server"""
 #     update_status(server, "Starting")
@@ -152,30 +172,39 @@ def startup_endnodes(conn, server: str, with_vmb: bool):
 #     sleep(2)
 #     update_status(server, "Online")
 
-def recursive_upload(conn, local_path, remote_path):
+
+def recursive_upload(conn: Connection, local_path, remote_path):
     """Recursively upload files from a local directory to a remote directory"""
     if os.path.isdir(local_path):
         # skip target directory and output directory
-        if 'target' in local_path or 'output' in local_path or 'venv' in local_path:
+        if "target" in local_path or "output" in local_path or "venv" in local_path:
             return
         conn.run(f"mkdir -p {remote_path}")
         for item in os.listdir(local_path):
             recursive_upload(conn, f"{local_path}/{item}", f"{remote_path}/{item}")
     else:
         # skip hidden files and doucmentation files
-        if '.git' in local_path or '.gitignore' in local_path:
+        if ".git" in local_path or ".gitignore" in local_path:
             return
         corrected_local_path = Path(local_path)
         corrected_remote_path = PurePosixPath(remote_path)
         conn.put(str(corrected_local_path), str(corrected_remote_path))
 
-def ssh_connect_and_restart(server: str, username: str, password: str, with_vmb: bool, is_root: bool):
+
+def ssh_connect_and_restart(
+    server: str, username: str, password: str, with_vmb: bool, is_root: bool
+):
     """Connect to a server using SSH and restart the server"""
     try:
         update_status(server, "Connecting")
 
         # Establish SSH connection using Fabric
-        conn = Connection(host=server, user=username, connect_kwargs={"password": password}, config=Config(overrides={'sudo': {'password': password}}))
+        conn = Connection(
+            host=server,
+            user=username,
+            connect_kwargs={"password": password},
+            config=make_config(server),
+        )
 
         setup_server(conn, server, username)
         stop_server(conn, server)
@@ -192,13 +221,21 @@ def ssh_connect_and_restart(server: str, username: str, password: str, with_vmb:
     finally:
         conn.close()
 
-def ssh_connect_and_setup(server: str, username: str, password: str, with_vmb: bool, is_root: bool):
+
+def ssh_connect_and_setup(
+    server: str, username: str, password: str, with_vmb: bool, is_root: bool
+):
     """Connect to a server using SSH and setup the server"""
     try:
         update_status(server, "Connecting")
 
         # Establish SSH connection using Fabric
-        conn = Connection(host=server, user=username, connect_kwargs={"password": password}, config=Config(overrides={'sudo': {'password': password}}))
+        conn = Connection(
+            host=server,
+            user=username,
+            connect_kwargs={"password": password},
+            config=make_config(server),
+        )
 
         setup_server(conn, server, username)
         stop_server(conn, server)
@@ -220,12 +257,15 @@ def ssh_connect_and_setup(server: str, username: str, password: str, with_vmb: b
         # recursive_upload(conn, LOCAL_SERVER_DIR, REMOTE_SERVER_DIR)
 
         # git clone the repo into the remote directory, if it does, run git pull, else git clone
-        # Check if the server directory exists 
+        # Check if the server directory exists
         result = conn.run(f"test -d {REMOTE_SERVER_DIR}", warn=True)
-            
+
         if not result.failed:
             # git pull
-            result = conn.run(f"cd {REMOTE_SERVER_DIR} && git reset --hard HEAD && git pull", warn=True)
+            result = conn.run(
+                f"cd {REMOTE_SERVER_DIR} && git reset --hard HEAD && git pull",
+                warn=True,
+            )
             if result.failed:
                 update_status(server, "Failed to pull repository")
                 return
@@ -253,18 +293,41 @@ def ssh_connect_and_setup(server: str, username: str, password: str, with_vmb: b
     finally:
         conn.close()
 
-def ssh_connect_and_stop(server: str, username: str, password: str, with_vmb: bool, is_root: bool):
+
+def ssh_connect_and_stop(
+    server: str, username: str, password: str, with_vmb: bool, is_root: bool
+):
     """Connect to a server using SSH and stop the server process"""
     try:
         update_status(server, "Connecting")
         # Establish SSH connection using Fabric
-        conn = Connection(host=server, user=username, connect_kwargs={"password": password}, config=Config(overrides={'sudo': {'password': password}}))
+        conn = Connection(
+            host=server,
+            user=username,
+            connect_kwargs={"password": password},
+            config=make_config(server),
+        )
         # Stop server process
         stop_server(conn, server)
     except Exception as e:
         update_status(server, f"Error: {str(e)}")
     finally:
         conn.close()
+
+
+def make_watcher(server: str):
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+
+    class OutputWatcher(StreamWatcher):
+        def submit(self, stream):
+            # with mutex:
+            # print(stream)
+            result = ansi_escape.sub("", stream)
+            status[server]["output"] = result
+            return []
+
+    return OutputWatcher()
+
 
 # Function to display the dynamic status matrix using curses
 def display_status(stdscr):
@@ -284,43 +347,85 @@ def display_status(stdscr):
         stdscr.addstr(1, 0, "Press 'q' to quit")
 
         with mutex:
+            line_idx = 3
             for idx, server in enumerate(SERVERS):
-                server_status = status[server]
+                server_status = status[server]["msg"]
                 # Assign colors based on the status
-                if any(status in server_status for status in ["Online", "Stopped", "Success"]):
+                if any(
+                    status in server_status
+                    for status in ["Online", "Stopped", "Success"]
+                ):
                     color = curses.color_pair(1)
                 elif any(status in server_status for status in ["Failed", "Error"]):
                     color = curses.color_pair(2)
                 else:
                     color = curses.color_pair(3)
                 # Display the status with color
-                stdscr.addstr(idx + 3, 0, f"{server}: {server_status}", color)
+                stdscr.addstr(line_idx, 0, f"{server}: {server_status}", color)
+                line_idx += 1
+                output = status[server].get("output", "-" * 50)
+                # get the last three lines of the output
+                output = "\n".join(output.splitlines()[-3:])
+
+                stdscr.addstr(line_idx, 0, output, curses.A_BOLD)
+                line_idx += output.count("\n") + 1
         stdscr.refresh()
         # Exit if 'q' is pressed
-        if stdscr.getch() == ord('q'):
+        if stdscr.getch() == ord("q"):
             break
         # Refresh the display every second
         sleep(1)
 
+
+def make_config(server: str):
+    """Create a Fabric config object with custom watchers"""
+    return Config(
+        {
+            "run": {
+                "watchers": [
+                    make_watcher(server),
+                ],
+                "hide": True,
+            },
+            "sudo": {
+                "watchers": [
+                    make_watcher(server),
+                ],
+                "password": password,
+            },
+        },
+    )
+
+
 def main():
+    global password
     parser = argparse.ArgumentParser(
         prog="CS 525 Deployment Script",
         description="Deploy the Matter testbed to multiple servers",
-        epilog="Default behavior: uploads the server source code, builds it, and starts the server process"
+        epilog="Default behavior: uploads the server source code, builds it, and starts the server process",
     )
     parser.add_argument("-u", "--user", type=str, help="Username for SSH login")
-    parser.add_argument("-k", "--kill", action="store_true", help="Just shutdown existing server processes")
-    parser.add_argument("-r", "--restart", action="store_true", help="Restart the server processes")
-    parser.add_argument("-v", "--vmb", action="store_true", help="Use VMB version of the server")
+    parser.add_argument(
+        "-k",
+        "--kill",
+        action="store_true",
+        help="Just shutdown existing server processes",
+    )
+    parser.add_argument(
+        "-r", "--restart", action="store_true", help="Restart the server processes"
+    )
+    parser.add_argument(
+        "-v", "--vmb", action="store_true", help="Use VMB version of the server"
+    )
     args = parser.parse_args()
 
     default_username = args.user
     if not default_username:
-        username = input(f"Enter your username: ")
+        username = os.getenv("USERNAME") or input("Enter your username: ")
     else:
         print(f"Using username: {default_username}")
         username = default_username
-    password = getpass("Enter your password: ")
+    password = os.getenv("PASSWORD") or getpass("Enter your password: ")
 
     threads = []
     with_vmb = args.vmb
@@ -337,7 +442,9 @@ def main():
     # Start a thread for each server
     for server in SERVERS:
         is_root = server == CONTROLLER_SERVER
-        thread = threading.Thread(target=target_action, args=(server, username, password, with_vmb, is_root))
+        thread = threading.Thread(
+            target=target_action, args=(server, username, password, with_vmb, is_root)
+        )
         thread.start()
         threads.append(thread)
 
@@ -352,6 +459,7 @@ def main():
     print("Final status of all servers:")
     for server, state in status.items():
         print(f"{server}: {state}")
+
 
 if __name__ == "__main__":
     main()
