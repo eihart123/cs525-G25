@@ -5,7 +5,7 @@
 npm run build
 
 # Now startup the VMB
-nohup node dist/esm/VirtualMatterBrokerNode.js -- --storage-clear
+nohup node dist/esm/VirtualMatterBrokerNode.js -- --storage-clear 2>&1 > vmb.log &
 
 # 20 devices
 for i in {10..29}; do
