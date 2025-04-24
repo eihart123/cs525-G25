@@ -137,11 +137,15 @@ def setup_server(conn: Connection, server: str, username: str):
 def build_server(conn: Connection, server: str):
     """Build the server on the remote server"""
     update_status(server, "Installing dependencies...")
-    result = conn.run(
-        f"cd {REMOTE_SERVER_DIR}/matter.js && npm ci && npm run build", warn=True
-    )
+    result = conn.run(f"cd {REMOTE_SERVER_DIR}/matter.js && npm ci", warn=True)
     if result.failed:
         update_status(server, "Failed to install dependencies")
+        return
+
+    update_status(server, "Building...")
+    result = conn.run(f"cd {REMOTE_SERVER_DIR}/matter.js && npm run build", warn=True)
+    if result.failed:
+        update_status(server, "Failed to build")
         return
 
 
@@ -165,8 +169,9 @@ def startup_endnodes(conn: Connection, server: str, with_vmb: bool):
     update_status(server, "Starting endnodes")
     dir = "cs525" if with_vmb else "cs525-baseline"
     pcap_dump_file = f"tcpdump_{server}.pcap"
+    # https://github.com/the-tcpdump-group/tcpdump/issues/485
     conn.sudo(
-        f"cd {REMOTE_SERVER_DIR} && nohup tcpdump -w {pcap_dump_file} 'src portrange 5540-5560 or dst portrange 5540-5560' > /dev/null 2>&1 &"
+        f"cd {REMOTE_SERVER_DIR} && nohup tcpdump -i any -U -w {pcap_dump_file} 'src portrange 5540-5560 or dst portrange 5540-5560' > /dev/null 2>&1 &"
     )
     result = conn.run(
         f"cd {REMOTE_SERVER_DIR}/matter.js/packages/{dir} && chmod +x ./startup.sh && ./startup.sh",
@@ -279,6 +284,7 @@ def ssh_connect_and_setup(
             # git pull
             result = conn.run(
                 f"cd {REMOTE_SERVER_DIR} && git reset --hard HEAD && git pull",
+                # f"cd {REMOTE_SERVER_DIR} && git pull",
                 warn=True,
             )
             if result.failed:
