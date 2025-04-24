@@ -33,6 +33,8 @@ export class UdpInterface implements NetInterface {
     }
 
     onData(listener: (channel: Channel<Uint8Array>, messageBytes: Uint8Array) => void): TransportInterface.Listener {
+        // XXX Hook here TransmissionMetadata
+        // hook into this.server.send
         return this.server.onData((_netInterface, peerHost, peerPort, data) =>
             listener(new UdpConnection(this.server, peerHost, peerPort), data),
         );
