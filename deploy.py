@@ -68,12 +68,17 @@ def stop_server(conn: Connection, server: str):
         result = conn.sudo("killall node", warn=True)
         if result.failed:
             update_status(server, "Failed to stop server")
-            return
+            # return
 
     result = conn.sudo("rm -rf ~/.matter", warn=True)
     if result.failed:
         update_status(server, "Failed to cached metadata")
-        return
+        # return
+
+    result = conn.sudo("killall tcpdump", warn=True)
+    if result.failed:
+        update_status(server, "Failed to stop tcpdump")
+        # return
 
     update_status(server, "Stopped")
 
@@ -92,6 +97,12 @@ def setup_server(conn: Connection, server: str, username: str):
         update_status(server, "Failed to install tmux")
         return
 
+    result = conn.sudo(
+        f"dnf install -y wireshark && usermod -a -G wireshark {username}", warn=True
+    )
+    if result.failed:
+        update_status(server, "Failed to install wireshark")
+        return
     # Install node
     result = conn.sudo("dnf module install -y nodejs:20/common", warn=True)
     if result.failed:
@@ -153,6 +164,10 @@ def startup_endnodes(conn: Connection, server: str, with_vmb: bool):
     """Start the endnodes on the remote server"""
     update_status(server, "Starting endnodes")
     dir = "cs525" if with_vmb else "cs525-baseline"
+    pcap_dump_file = f"tcpdump_{server}.pcap"
+    conn.sudo(
+        f"cd {REMOTE_SERVER_DIR} && nohup tcpdump -w {pcap_dump_file} 'src portrange 5540-5560 or dst portrange 5540-5560' > /dev/null 2>&1 &"
+    )
     result = conn.run(
         f"cd {REMOTE_SERVER_DIR}/matter.js/packages/{dir} && chmod +x ./startup.sh && ./startup.sh",
         warn=True,
