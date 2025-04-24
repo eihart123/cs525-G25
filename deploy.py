@@ -169,25 +169,28 @@ def startup_endnodes(conn: Connection, server: str, with_vmb: bool):
     update_status(server, "Starting tcpdump")
     dir = "cs525" if with_vmb else "cs525-baseline"
     pcap_dump_file = f"tcpdump_{server}.pcap"
+    filter = ""
+    # filter = "'src portrange 5540-5560 or dst portrange 5540-5560'"
     # https://github.com/the-tcpdump-group/tcpdump/issues/485
+    cmd1 = f"nohup tcpdump -i any -U -w {REMOTE_SERVER_DIR}/{pcap_dump_file} {filter} &"
     result = conn.sudo(
-        f"nohup tcpdump -i any -U -w {REMOTE_SERVER_DIR}/{pcap_dump_file} 'src portrange 5540-5560 or dst portrange 5540-5560' > /dev/null 2>&1 &",
+        cmd1,
         warn=True,
     )
     if result.failed:
         update_status(server, "Failed to start tcpdump")
         return
     update_status(server, "Starting endnodes")
-    cmd = f"bash {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/startup.sh"
+    cmd2 = f"bash {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/startup.sh"
     result = conn.sudo(
-        cmd,
+        cmd2,
         warn=True,
     )
 
+    with mutex:
+        status[server]["output"] = cmd1 + "\n" + cmd2
     if result.failed:
         update_status(server, "Failed to start endnodes")
-        with mutex:
-            status[server]["output"] = cmd
         return
     update_status(server, "Online")
 
