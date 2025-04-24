@@ -155,7 +155,7 @@ def start_root_controller(conn: Connection, server: str, with_vmb: bool):
     dir = "cs525" if with_vmb else "cs525-baseline"
     serverFile = "RootControllerNode.js" if with_vmb else "ControllerNode.js"
     result = conn.run(
-        f"cd {REMOTE_SERVER_DIR}/matter.js/packages/{dir} && tmux new -d 'node ./dist/esm/${serverFile} -- --storage-clear'",
+        f"cd {REMOTE_SERVER_DIR}/matter.js/packages/{dir} && nohup node ./dist/esm/${serverFile} -- --storage-clear",
         warn=True,
     )
     if result.failed:
@@ -166,14 +166,20 @@ def start_root_controller(conn: Connection, server: str, with_vmb: bool):
 
 def startup_endnodes(conn: Connection, server: str, with_vmb: bool):
     """Start the endnodes on the remote server"""
-    update_status(server, "Starting endnodes")
+    update_status(server, "Starting tcpdump")
     dir = "cs525" if with_vmb else "cs525-baseline"
     pcap_dump_file = f"tcpdump_{server}.pcap"
     # https://github.com/the-tcpdump-group/tcpdump/issues/485
-    conn.sudo(
-        f"cd {REMOTE_SERVER_DIR} && nohup tcpdump -i any -U -w {pcap_dump_file} 'src portrange 5540-5560 or dst portrange 5540-5560' > /dev/null 2>&1 &"
+    result = conn.sudo(
+        f"cd {REMOTE_SERVER_DIR} && nohup tcpdump -i any -U -w {pcap_dump_file} 'src portrange 5540-5560 or dst portrange 5540-5560' > /dev/null 2>&1 &",
+        warn=True,
     )
-    result = conn.run(
+    if result.failed:
+        update_status(server, "Failed to start tcpdump")
+        return
+    update_status(server, "Starting endnodes")
+
+    result = conn.sudo(
         f"cd {REMOTE_SERVER_DIR}/matter.js/packages/{dir} && chmod +x ./startup.sh && ./startup.sh",
         warn=True,
     )
