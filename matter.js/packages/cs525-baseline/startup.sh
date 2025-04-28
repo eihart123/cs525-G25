@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Run from the cs525-baseline directory
-
+cd /opt/matter/cs525-G25/matter.js/packages/cs525-baseline 2>/dev/null || true
 npm run build
 
 # 20 devices
