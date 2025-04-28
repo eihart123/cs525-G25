@@ -8,5 +8,7 @@ npm run build
 for i in {5540..5559}; do
   # Try to start the server
   echo "Starting sensor $i..."
-  PORT=$i nohup node dist/esm/SensorDeviceNode.js -- --storage-clear 2>&1 | cat > sensor-$i.log & 
+  PORT=$i node dist/esm/SensorDeviceNode.js -- --storage-clear 2>&1 | cat > sensor-$i.log & 
 done
+
+sleep infinity

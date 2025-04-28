@@ -80,6 +80,14 @@ def stop_server(conn: Connection, server: str):
         update_status(server, "Failed to stop tcpdump")
         # return
 
+    result = conn.sudo("tmux kill-server", warn=True)
+    if result.failed:
+        update_status(server, "Failed to stop tmux")
+        # return
+    result = conn.run("tmux kill-server", warn=True)
+    if result.failed:
+        update_status(server, "Failed to stop tmux")
+        # return
     update_status(server, "Stopped")
 
 
@@ -154,8 +162,9 @@ def start_root_controller(conn: Connection, server: str, with_vmb: bool):
     update_status(server, "Starting root controller")
     dir = "cs525" if with_vmb else "cs525-baseline"
     serverFile = "RootControllerNode.js" if with_vmb else "ControllerNode.js"
-    result = conn.run(
-        f"nohup node {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/dist/esm/${serverFile} -- --storage-clear",
+    # These shouldn't run in the background, otherwise the session immediately exits
+    result = conn.sudo(
+        f"tmux new-session -d -s server 'node \"{REMOTE_SERVER_DIR}/matter.js/packages/{dir}/dist/esm/{serverFile}\" -- --storage-clear'",
         warn=True,
     )
     if result.failed:
@@ -168,11 +177,11 @@ def startup_endnodes(conn: Connection, server: str, with_vmb: bool):
     """Start the endnodes on the remote server"""
     update_status(server, "Starting tcpdump")
     dir = "cs525" if with_vmb else "cs525-baseline"
-    pcap_dump_file = f"tcpdump_{server}.pcap"
+    pcap_dump_file = f"tcpdump_{server.split('.')[0]}.pcap"
     filter = ""
     # filter = "'src portrange 5540-5560 or dst portrange 5540-5560'"
     # https://github.com/the-tcpdump-group/tcpdump/issues/485
-    cmd1 = f"nohup tcpdump -i any -U -w {REMOTE_SERVER_DIR}/{pcap_dump_file} {filter} &"
+    cmd1 = f'tmux new-session -d -s tcpdump "tcpdump -i any -U -w {REMOTE_SERVER_DIR}/{pcap_dump_file} {filter}"'
     result = conn.sudo(
         cmd1,
         warn=True,
@@ -181,7 +190,7 @@ def startup_endnodes(conn: Connection, server: str, with_vmb: bool):
         update_status(server, "Failed to start tcpdump")
         return
     update_status(server, "Starting endnodes")
-    cmd2 = f"bash {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/startup.sh"
+    cmd2 = f"tmux new-session -d -s server 'bash {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/startup.sh'"
     result = conn.sudo(
         cmd2,
         warn=True,
