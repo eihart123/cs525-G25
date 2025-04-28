@@ -262,6 +262,42 @@ def ssh_connect_and_restart(
         conn.close()
 
 
+def ssh_connect_and_get_logs(
+    server: str, username: str, password: str, with_vmb: bool, is_root: bool
+):
+    """Connect to a server using SSH and get the logs"""
+
+    server_prefix = server.split(".")[0]
+    try:
+        update_status(server, "Connecting")
+
+        # Establish SSH connection using Fabric
+        conn = Connection(
+            host=server,
+            user=username,
+            connect_kwargs={"password": password},
+            config=make_config(server),
+        )
+
+        # Get the logs
+        result = conn.run(f"ls {REMOTE_SERVER_DIR}/*.pcap", warn=True)
+        if result.failed:
+            update_status(server, "Failed to get logs")
+            return
+        for pcap_file in result.stdout.splitlines():
+            name = Path(pcap_file).name
+            local_path = Path(LOCAL_SERVER_DIR) / server_prefix / name
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+            update_status(server, f"Downloading {local_path.as_posix()}")
+            conn.get((Path(REMOTE_SERVER_DIR) / name).as_posix(), local_path.as_posix())
+            update_status(server, f"Downloaded {local_path.as_posix()}")
+
+    except Exception as e:
+        update_status(server, f"Error: {str(e)}")
+    finally:
+        conn.close()
+
+
 def ssh_connect_and_setup(
     server: str, username: str, password: str, with_vmb: bool, is_root: bool
 ):
@@ -372,6 +408,8 @@ def make_watcher(server: str):
 
 # Function to display the dynamic status matrix using curses
 def display_status(stdscr):
+    global threads
+    global password
     """Display the status of all servers using curses"""
     curses.curs_set(0)  # Hide cursor
     stdscr.nodelay(True)  # Make getch() non-blocking
@@ -381,11 +419,12 @@ def display_status(stdscr):
     curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
     curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
     curses.init_pair(3, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+    collect_logs = False
 
     while True:
         stdscr.clear()
         stdscr.addstr(0, 0, "CS 625 Server Status Monitor", curses.A_BOLD)
-        stdscr.addstr(1, 0, "Press 'q' to quit")
+        stdscr.addstr(1, 0, "Press 'q' to quit, 'c' to collect logs", curses.A_BOLD)
 
         with mutex:
             line_idx = 3
@@ -414,6 +453,18 @@ def display_status(stdscr):
         # Exit if 'q' is pressed
         if stdscr.getch() == ord("q"):
             break
+        if stdscr.getch() == ord("c") and not collect_logs:
+            # collect logs
+            collect_logs = True
+            for server in SERVERS:
+                update_status(server, "Collecting logs")
+                is_root = server == CONTROLLER_SERVER
+                thread = threading.Thread(
+                    target=ssh_connect_and_get_logs,
+                    args=(server, username, password, with_vmb, is_root),
+                )
+                thread.start()
+                threads.append(thread)
         # Refresh the display every second
         sleep(1)
 
@@ -438,8 +489,15 @@ def make_config(server: str):
     )
 
 
+threads = []
+username = ""
+with_vmb = False
+
+
 def main():
     global password
+    global username
+    global threads
     parser = argparse.ArgumentParser(
         prog="CS 525 Deployment Script",
         description="Deploy the Matter testbed to multiple servers",
@@ -468,7 +526,6 @@ def main():
         username = default_username
     password = os.getenv("PASSWORD") or getpass("Enter your password: ")
 
-    threads = []
     with_vmb = args.vmb
 
     # Choose target action
@@ -490,7 +547,11 @@ def main():
         threads.append(thread)
 
     # Start curses to display the status
-    curses.wrapper(display_status)
+    try:
+        curses.wrapper(display_status)
+
+    except KeyboardInterrupt:
+        os._exit(0)
 
     # Wait for all threads to complete
     for thread in threads:
