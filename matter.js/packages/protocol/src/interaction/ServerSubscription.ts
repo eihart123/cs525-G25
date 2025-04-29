@@ -555,7 +555,7 @@ export class ServerSubscription extends Subscription {
      * sending by 50ms in any case to mke sure to catch all updates.
      */
     #prepareDataUpdate() {
-        logger.info("ServerSubscription.#prepareDataUpdate");
+        logger.debug("ServerSubscription.#prepareDataUpdate");
         if (this.#sendDelayTimer.isRunning || this.isClosed) {
             // sending data is already scheduled, data updates go in there ... or we close down already
             return;
@@ -857,9 +857,9 @@ export class ServerSubscription extends Subscription {
     }
 
     attributeChangeListener<T>(path: AttributePath, schema: TlvSchema<T>, version: number, value: T) {
-        logger.info('ServerSubscription.attributeChangeListener', path, schema, version, value);
+        logger.debug('ServerSubscription.attributeChangeListener', path, schema, version, value);
         const changeResult = this.attributeChangeHandler(path, schema, version, value);
-        logger.info('ServerSubscription.attributeChangeListener done', changeResult);
+        logger.debug('ServerSubscription.attributeChangeListener done', changeResult);
         if (MaybePromise.is(changeResult)) {
             const resolver = Promise.resolve(changeResult)
                 .catch(error => logger.error(`Error handling attribute change:`, error))
@@ -874,7 +874,7 @@ export class ServerSubscription extends Subscription {
         version: number,
         value: T,
     ): MaybePromise<void> {
-        logger.info('ServerSubscription.attributeChangeHandler', path, schema, version, value);
+        logger.debug('ServerSubscription.attributeChangeHandler', path, schema, version, value);
         const attributeListenerData = this.#attributeListeners.get(attributePathToId(path));
         if (attributeListenerData === undefined) return; // Ignore changes to attributes that are not subscribed to
 
@@ -895,11 +895,11 @@ export class ServerSubscription extends Subscription {
         }
         this.#outstandingAttributeUpdates.set(attributePathToId(path), { attribute, path, schema, version, value });
         this.#prepareDataUpdate();
-        logger.info('ServerSubscription.attributeChangeHandler done');
+        logger.debug('ServerSubscription.attributeChangeHandler done');
     }
 
     eventChangeListener<T>(path: EventPath, schema: TlvSchema<T>, newEvent: NumberedOccurrence) {
-        logger.info('ServerSubscription.eventChangeListener', path, schema, newEvent);
+        logger.debug('ServerSubscription.eventChangeListener', path, schema, newEvent);
         const eventListenerData = this.#eventListeners.get(eventPathToId(path));
         if (eventListenerData === undefined) return; // Ignore changes to attributes that are not subscribed to
 
@@ -1016,7 +1016,7 @@ export class ServerSubscription extends Subscription {
             ); // TODO Format path better using endpoint structure
         }
         const messenger = new InteractionServerMessenger(exchange);
-        logger.info('ServerSubscription#sendUpdateMessage', attributes, events);
+        logger.debug('ServerSubscription#sendUpdateMessage', attributes, events);
         try {
             if (attributes.length === 0 && events.length === 0) {
                 await messenger.sendDataReport(

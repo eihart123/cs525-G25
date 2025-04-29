@@ -281,11 +281,30 @@ def ssh_connect_and_get_logs(
 
         # Get the logs
         result = conn.run(f"ls {REMOTE_SERVER_DIR}/*.pcap", warn=True)
+        stop_server(conn, server)
         if result.failed:
             update_status(server, "Failed to get logs")
             return
-        for pcap_file in result.stdout.splitlines():
-            name = Path(pcap_file).name
+        for pcap_file in result.stdout.strip().splitlines():
+            name = Path(pcap_file.strip()).name
+            local_path = Path(LOCAL_SERVER_DIR) / server_prefix / name
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+            update_status(server, f"Downloading {local_path.as_posix()}")
+            conn.get((Path(REMOTE_SERVER_DIR) / name).as_posix(), local_path.as_posix())
+            update_status(server, f"Downloaded {local_path.as_posix()}")
+
+        # /opt/matter/cs525-G25/matter.js/packages/cs525
+        dir = "cs525" if with_vmb else "cs525-baseline"
+        result = conn.run(
+            f"ls {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/*.log", warn=True
+        )
+
+        if result.failed:
+            update_status(server, "Failed to get logs")
+            return
+
+        for log_file in result.stdout.strip().splitlines():
+            name = Path(log_file.strip()).name
             local_path = Path(LOCAL_SERVER_DIR) / server_prefix / name
             local_path.parent.mkdir(parents=True, exist_ok=True)
             update_status(server, f"Downloading {local_path.as_posix()}")

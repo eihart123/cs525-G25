@@ -314,7 +314,7 @@ export class InteractionServerMessenger extends InteractionMessenger {
         payload?: DataReportPayloadIterator,
         waitForAck = true,
     ) {
-        logger.info(`Sending DataReport on ${this.getExchangeChannelName()}`);
+        logger.debug(`Sending DataReport on ${this.getExchangeChannelName()}`);
         const { subscriptionId, suppressResponse, interactionModelRevision } = baseDataReport;
 
         const dataReport: TypeFromSchema<typeof TlvDataReportForSend> = {
@@ -630,7 +630,7 @@ export class InteractionServerMessenger extends InteractionMessenger {
     }
 
     async sendDataReportMessage(dataReport: TypeFromSchema<typeof TlvDataReportForSend>, waitForAck = true) {
-        logger.info(`sendDataReportMessage on ${this.getExchangeChannelName()}`);
+        logger.debug(`sendDataReportMessage on ${this.getExchangeChannelName()}`);
         const dataReportToSend = {
             ...dataReport,
             suppressResponse: dataReport.moreChunkedMessages ? false : dataReport.suppressResponse, // always false when moreChunkedMessages is true

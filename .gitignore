@@ -41,3 +41,4 @@ matter.js/packages/types/dist/
 matter.js/packages/cs525/results_updated-bridge.txt
 .env
 *.pcap
+sp*/*
