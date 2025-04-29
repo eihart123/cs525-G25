@@ -20,7 +20,6 @@ import { LogLevel, Logger, singleton } from "@matter/main";
 import { exit } from "node:process";
 
 async function main() {
-    const deviceID = process.env.DEVICE_ID;
     const port = process.env.PORT;
     console.log({ port });
     if (port === undefined) {
@@ -30,6 +29,7 @@ async function main() {
         // Alternatively you could fallback to a default value or handle it differently
         // const deviceID = '1'; // Fallback to a default device ID
     }
+    const deviceID = port;
     /** Initialize configuration values */
     console.log("Initializing configuration...");
     Logger.level = "info";
