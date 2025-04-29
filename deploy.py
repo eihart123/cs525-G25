@@ -157,19 +157,39 @@ def build_server(conn: Connection, server: str):
         return
 
 
+filter = ""
+
+
 def start_root_controller(conn: Connection, server: str, with_vmb: bool):
     """Start the root controller on the remote server"""
     update_status(server, "Starting root controller")
     dir = "cs525" if with_vmb else "cs525-baseline"
     serverFile = "RootControllerNode.js" if with_vmb else "ControllerNode.js"
     # These shouldn't run in the background, otherwise the session immediately exits
+
+    update_status(server, "Starting tcpdump")
+    dir = "cs525" if with_vmb else "cs525-baseline"
+    pcap_dump_file = f"tcpdump_{server.split('.')[0]}.pcap"
+    # filter = "'src portrange 5540-5560 or dst portrange 5540-5560'"
+    # https://github.com/the-tcpdump-group/tcpdump/issues/485
+    cmd1 = f'tmux new-session -d -s tcpdump "tcpdump -i any -U -w {REMOTE_SERVER_DIR}/{pcap_dump_file} {filter}"'
     result = conn.sudo(
-        f"tmux new-session -d -s server 'node \"{REMOTE_SERVER_DIR}/matter.js/packages/{dir}/dist/esm/{serverFile}\" -- --storage-clear'",
+        cmd1,
+        warn=True,
+    )
+    if result.failed:
+        update_status(server, "Failed to start tcpdump")
+        return
+    cmd2 = f"tmux new-session -d -s server 'node {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/dist/esm/{serverFile} -- --storage-clear  2>&1 | tee {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/root.log'"
+    result = conn.sudo(
+        cmd2,
         warn=True,
     )
     if result.failed:
         update_status(server, "Failed to start root controller")
         return
+    with mutex:
+        status[server]["output"] = cmd1 + "\n" + cmd2
     update_status(server, "Online")
 
 
@@ -178,7 +198,6 @@ def startup_endnodes(conn: Connection, server: str, with_vmb: bool):
     update_status(server, "Starting tcpdump")
     dir = "cs525" if with_vmb else "cs525-baseline"
     pcap_dump_file = f"tcpdump_{server.split('.')[0]}.pcap"
-    filter = ""
     # filter = "'src portrange 5540-5560 or dst portrange 5540-5560'"
     # https://github.com/the-tcpdump-group/tcpdump/issues/485
     cmd1 = f'tmux new-session -d -s tcpdump "tcpdump -i any -U -w {REMOTE_SERVER_DIR}/{pcap_dump_file} {filter}"'
