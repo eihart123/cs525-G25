@@ -307,8 +307,11 @@ def ssh_connect_and_get_logs(
             name = Path(log_file.strip()).name
             local_path = Path(LOCAL_SERVER_DIR) / server_prefix / name
             local_path.parent.mkdir(parents=True, exist_ok=True)
-            update_status(server, f"Downloading {local_path.as_posix()}")
-            conn.get((Path(REMOTE_SERVER_DIR) / name).as_posix(), local_path.as_posix())
+            remote_path = (
+                Path(REMOTE_SERVER_DIR) / "matter.js" / "packages" / dir / name
+            )
+            update_status(server, f"Downloading {remote_path.as_posix()}")
+            conn.get(remote_path.as_posix(), local_path.as_posix())
             update_status(server, f"Downloaded {local_path.as_posix()}")
 
     except Exception as e:
