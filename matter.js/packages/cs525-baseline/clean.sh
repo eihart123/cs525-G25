@@ -1,3 +1,5 @@
+set -x #echo on
+
 killall node
 rm -rf ~/.matter/controller-baseline
 rm -rf ~/.matter/1*
