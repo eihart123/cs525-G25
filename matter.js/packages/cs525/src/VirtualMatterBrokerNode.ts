@@ -34,6 +34,7 @@ import { NodeId, VendorId, Cluster, ClusterId, ClusterRegistry } from "@matter/t
 import { execSync } from "node:child_process";
 import { DescriptorServer } from "@matter/node/behaviors";
 import { appendFile } from "node:fs";
+import { Command } from "commander";
 // import { Attribute, Cluster, Command, Event } from "./Cluster.js";
 const logger = Logger.get("VirtualMatterBrokerNode");
 Logger.level = "info";
@@ -55,6 +56,11 @@ logger.info(`Storage location: ${storageService.location} (Directory)`);
 
 class ProxiedTemperatureMeasurementServer extends TemperatureMeasurementServer {
     
+}
+
+interface NodeEndpointKey {
+    nodeId: NodeId;
+    endpointId: number;
 }
 
 interface Datapoint {
@@ -86,6 +92,7 @@ class VirtualMatterBrokerNode {
     #vmbStorageManager: StorageManager;
     #controller: CommissioningController;
     #controllerStorage: StorageContext;
+    #northNode: ServerNode;
     #aggregator: Endpoint<AggregatorEndpoint>;
     #aggregatorStorage: StorageContext;
     // When the interval was last fired
@@ -94,6 +101,8 @@ class VirtualMatterBrokerNode {
     #aggregatorData: EndpointDataRecord;
     // Attributes is the final computed stuff
     #aggregatorAttributes: Record<string, number>;
+    // Proxied nodes
+    #proxiedEndpoints: Map<NodeEndpointKey, MutableEndpoint>;
     /**
     
     Create an internal controller C2. The internal controller should directly pair with the end device.
@@ -130,20 +139,20 @@ class VirtualMatterBrokerNode {
         await this.#controller.start();
     }
 
-    async #initAggregator() {
+    async #initAggregator(northPort: number, northDiscriminator: number, northSetupPin: number) {
         this.#aggregatorStorage = this.#vmbStorageManager.createContext("north-aggregator");
 
         const deviceName = "My First Broker Bridge";
         const vendorName = "CS 525 G25";
-        const passcode = await this.#aggregatorStorage.get("passcode", 20250525);
-        const discriminator = await this.#aggregatorStorage.get("discriminator", 3840);
+        const passcode = await this.#aggregatorStorage.get("passcode", northSetupPin);
+        const discriminator = await this.#aggregatorStorage.get("discriminator", northDiscriminator);
         // product name / id and vendor id should match what is in the device certificate
         const vendorId = await this.#aggregatorStorage.get("vendorid", 0xfff1);
         // const productName = `node-matter OnOff ${isSocket ? "Socket" : "Light"}`;
         const productName = "Factory Broker 9000";
         const productId = await this.#aggregatorStorage.get("productid", 0x8000);
 
-        const port = environment.vars.number("port") ?? 5540;
+        const port = environment.vars.number("port") ?? northPort;
 
         const uniqueId = await this.#aggregatorStorage.get("uniqueid", Time.nowMs().toString());
 
@@ -157,7 +166,7 @@ class VirtualMatterBrokerNode {
         });
 
         // Create Matter server node
-        const server = await ServerNode.create({
+        this.#northNode = await ServerNode.create({
             id: uniqueId,
             network: {
                 port,
@@ -168,7 +177,7 @@ class VirtualMatterBrokerNode {
             },
             productDescription: {
                 name: deviceName,
-                deviceType: AggregatorEndpoint.deviceType,
+                deviceType: AggregatorEndpoint.deviceType, // TODO: ??????
             },
             basicInformation: {
                 vendorName,
@@ -184,12 +193,12 @@ class VirtualMatterBrokerNode {
 
         // Create aggregator endpoint
         this.#aggregator = new Endpoint(AggregatorEndpoint.with(AggregatedStatsServer), { id: "aggregator" });
-        await server.add(this.#aggregator);
+        await this.#northNode.add(this.#aggregator);
 
-        server.behaviors.require(AggregatedStatsBehavior);
+        this.#northNode.behaviors.require(AggregatedStatsBehavior);
 
         // Start the server
-        await server.start();
+        await this.#northNode.start();
         console.log(`Matter server started on port ${port}`);
 
         // await this.#aggregator.set({
@@ -201,7 +210,7 @@ class VirtualMatterBrokerNode {
         // });
     }
 
-    async start(instanceNodeId: string) {
+    async start(instanceNodeId: string, northPort: number, northDiscriminator: number, northSetupPin: number) {
         if (!instanceNodeId) throw new Error("Missing instance node id");
         this.instanceNodeId = instanceNodeId;
         this.#vmbStorageManager = (await storageService.open(`vmb-${this.instanceNodeId}`));
@@ -211,7 +220,9 @@ class VirtualMatterBrokerNode {
         // South side initialization
         await this.#initController();
         // North side initialization
-        await this.#initAggregator();
+        await this.#initAggregator(northPort, northDiscriminator, northSetupPin);
+
+        this.#proxiedEndpoints = new Map<NodeEndpointKey, MutableEndpoint>();
 
         // Setup a timer to recalculate aggregates
         for (const length of AggregateIntervals) {
@@ -225,35 +236,183 @@ class VirtualMatterBrokerNode {
         }
     }
 
-    async pairNode(i: number) {
-        let longDiscriminator, setupPin;
-        longDiscriminator = await this.#controllerStorage.get("longDiscriminator", 10);
+    async pairNode(ip: string, port: number, longDiscriminator: number, setupPin: number): Promise<NodeId> {
+        // let longDiscriminator, setupPin;
+        // longDiscriminator = await this.#controllerStorage.get("longDiscriminator", 10);
         if (longDiscriminator > 4095) throw new Error("Discriminator value must be less than 4096");
-        setupPin = await this.#controllerStorage.get("pin", 20202021);
+        // setupPin = await this.#controllerStorage.get("pin", 20202021);
 
-        // TODO: Commission the node
         const options: NodeCommissioningOptions = {
             commissioning: {
                 regulatoryLocation: GeneralCommissioning.RegulatoryLocationType.IndoorOutdoor,
                 regulatoryCountryCode: "XX",
             },
             discovery: {
-                /* We will use auto-discovery with a discriminator */
-                knownAddress: undefined,
-                identifierData: { longDiscriminator: longDiscriminator + i },
+                knownAddress: {
+                    type: "udp",
+                    ip,
+                    port,
+                },
+                identifierData: {
+                    longDiscriminator: longDiscriminator
+                },
             },
             passcode: setupPin,
         };
 
-        // TODO: on commission, update the aggregator endpoint with the new node
         const nodeId = await this.#controller.commissionNode(options);
         this.onNodeCommission(nodeId);
+        return nodeId;
+    }
 
+    // Create a virtual node/endpoints (use Node Label) in the aggregator
+    async onNodeCommission(nodeId: NodeId) {
+        // Query the original node for all its endpoints
+        // (await this.#controller.getNode(nodeId)).getDevices()
+        const commissionedNodes = this.#controller.getCommissionedNodes()
+        // logger.debug(`Commissioned nodes: [${commissionedNodes}]`);
+        const details = this.#controller.getCommissionedNodesDetails()
+        const detailsForNode = details.find((node) => node.nodeId === nodeId);
+        if (detailsForNode === undefined) {
+            throw new Error("Node not found in commissioned nodes details");
+        }
+        logger.debug(`Commissioned nodes details: ${Diagnostic.json(details)}`);
+        logger.debug(detailsForNode.advertisedName);
+
+        const node = await this.#controller.getNode(nodeId);
+        logger.debug(`Node: ${Diagnostic.json(node)}`);
+
+        // Iterate over the endpoints of the node
+        // For each endpoint, iterate over clusters, see if the cluster is a supported cluster that we want to proxy, or is a BridgedDeviceBasicInformation cluster
+        const rootEndpoint = node.getRootEndpoint()
+        const endpoints = rootEndpoint?.getChildEndpoints() ?? [];
+        for (const child of endpoints) {
+            logger.debug(`Child endpoint "${child.name}" found with type: ${child.deviceType}`);
+            const aggregatedStats = child.getClusterClient(AggregatedStatsCluster);
+            if (aggregatedStats) {
+                logger.info(`Child ${child.number} supports Aggregated Stats`);
+                // logger.info(await aggregatedStats.subscribeAverageMeasuredValue10Attribute(value => console.log(`${name}.average10 = ${value}`), 5, 30));
+                // logger.info(await aggregatedStats.subscribeAverageMeasuredValue60Attribute(value => console.log(`${name}.average60 = ${value}`), 5, 120));
+                const aggregatedChildEndpoints = child.getChildEndpoints();
+                logger.info(`Child ${child.number} has ${aggregatedChildEndpoints.length} aggregated child endpoints`);
+                aggregatedChildEndpoints.forEach((nestedChild) => {
+                    logger.info(`Nested child endpoint "${child.number}/${nestedChild.number}" found with type: ${nestedChild.deviceType}`);
+                    // TODO: Create proxy endpoint for the nested child!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                });
+            }
+            const bridgedDeviceBasicInformation = child.getClusterClient(BridgedDeviceBasicInformationCluster);
+            if (bridgedDeviceBasicInformation) {
+                logger.info(`Child ${child.number} supports BridgedDeviceBasicInformation`);
+            }
+            const temperatureSensor = child.getClusterClient(TemperatureMeasurementCluster);
+            if (temperatureSensor) {
+                logger.info(`Child ${child.number} supports TemperatureMeasurement`);
+                // Create a "proxy" endpoint for the temperature sensor
+                const proxy_endpoint = new Endpoint(
+                    TemperatureSensorDevice.with(BridgedDeviceBasicInformationServer),
+                    {
+                        id: `ple-${nodeId}`,
+                        bridgedDeviceBasicInformation: {
+                            nodeLabel: detailsForNode.advertisedName, // Main end user name for the device
+                            productName: detailsForNode.advertisedName,
+                            productLabel: detailsForNode.advertisedName,
+                            serialNumber: `node-matter-${nodeId}`,
+                            reachable: true,
+                        },
+                    }
+                );
+
+                // Add the proxy endpoint to the aggregator endpoint
+                // This allows visibility of the proxy endpoint on the north side of the bridge,
+                // which is technically visibility of the south node
+                await this.#aggregator.add(proxy_endpoint);
+            }
+        }
+    }
+
+    async connectNode(nodeId: NodeId) {
         // Connect the node
         const node = await this.#controller.getNode(nodeId);
         if (node && !node.isConnected) {
             node.connect({ autoSubscribe: false });
         }
+
+        // TODO: Subscribe to aggregated stats ONLY, we turned off autoSubscribe above
+        node.events.attributeChanged.on(async ({ path: { clusterId, endpointId, attributeName }, value }) => {
+            logger.debug(
+                `attributeChangedCallback ${nodeId}: Attribute ${endpointId}/${clusterId}/${attributeName} changed to ${Logger.toJSON(
+                    value,
+                )}`,
+            );
+            // const actualEndpoint = (await this.#controller.getNode(nodeId)).getDeviceById(endpointId)
+            // const onOffValue = endpoint.state.onOff.onOff;
+
+            const cluster = ClusterRegistry.get(clusterId);
+            if (!cluster) {
+                throw new Error(`No such clusterID '${clusterId}'`);
+            }
+            const clusterNameProperty = cluster.name.charAt(0).toLowerCase() + cluster.name.slice(1)
+            const proxiedClusters = [
+                'AggregatedStats', // TODO: Handle this
+                'TemperatureMeasurement'
+            ]
+
+            // This is all attributes we want to match against
+            const aggregatedAttributes: string[] = []
+            for (const cluster of proxiedClusters) {
+                for (const attribute of AttributeList) {
+                    const attributeNameProperty = attribute.charAt(0).toLowerCase() + attribute.slice(1)
+                    aggregatedAttributes.push(`${cluster}.${attributeNameProperty}`)
+                }
+            }
+
+            // This is the attribute we got from the event
+            const clusterPlusAttribute = `${cluster.name}.${attributeName}`
+
+            logger.debug(`Cluster: ${cluster.name}, Attribute: ${attributeName}, Value: ${value}`)
+            logger.debug(`ClusterPlusAttribute: ${clusterPlusAttribute}`)
+            logger.debug(`AggregatedAttributes: ${aggregatedAttributes}`)
+
+            if (aggregatedAttributes.includes(clusterPlusAttribute)) {
+                logger.debug(`${clusterPlusAttribute} matched an aggregated Attribute, updating tracked metadata`)
+                if (!Object.hasOwn(this.#aggregatorData, clusterPlusAttribute)) {
+                    const empty: Record<string, MoreDatapoint> = {}
+                    this.#aggregatorData[clusterPlusAttribute] = empty;
+                }
+                const timestamp = Date.now()
+                this.#aggregatorData[clusterPlusAttribute][endpointId] = {
+                    ...this.#aggregatorData[clusterPlusAttribute][endpointId],
+                    latest: {
+                        value,
+                        timestamp
+                    },
+                }
+                
+                // With this value, we want to update our riemann sums
+                for (const length of AggregateIntervals) {
+                    const previousArea = this.#aggregatorData[clusterPlusAttribute][endpointId]?.[length]?.sum || 0
+                    const area = value * ((timestamp - this.#lastIntervalFired[length]) / 1000)
+                    this.#aggregatorData[clusterPlusAttribute][endpointId][length] = {
+                        sum: previousArea + area,
+                    }
+                }
+            } else {
+                logger.debug(`${clusterPlusAttribute} did not match an aggregated Attribute`)
+            }
+
+            // Update the proxy endpoint
+            const proxy_endpoint = this.#proxiedEndpoints.get({ nodeId, endpointId });
+            if (proxy_endpoint && proxiedClusters.includes(cluster.name)) {
+                // These need to start lowercase (set syntax)
+                await proxy_endpoint.set({
+                    [clusterNameProperty]: {
+                        [attributeName]: value
+                    }
+                })
+            } else {
+                logger.debug(`Cluster ${cluster.name} is not proxied, not updating proxy endpoint`)
+            }
+        });
     }
 
     async recalculateAggregatesFor(intervalSec: AggregateInterval) {
@@ -320,177 +479,6 @@ class VirtualMatterBrokerNode {
                 this.#aggregatorData[clusterPlusAttribute][endpointId][intervalSec] = { sum: 0 }
             }
         }
-        
-
-    }
-    // Create a virtual node/endpoints (use Node Label) in the aggregator
-    async onNodeCommission(nodeId: NodeId) {
-        // Query the original node for all its endpoints
-        // (await this.#controller.getNode(nodeId)).getDevices()
-        const commissionedNodes = this.#controller.getCommissionedNodes()
-        // logger.debug(`Commissioned nodes: [${commissionedNodes}]`);
-        const details = this.#controller.getCommissionedNodesDetails()
-        const detailsForNode = details.find((node) => node.nodeId === nodeId);
-        if (detailsForNode === undefined) {
-            throw new Error("Node not found in commissioned nodes details");
-        }
-        logger.debug(`Commissioned nodes details: ${Diagnostic.json(details)}`);
-        logger.debug(detailsForNode.advertisedName);
-
-        const node = await this.#controller.getNode(nodeId);
-        logger.debug(`Node: ${Diagnostic.json(node)}`);
-
-        // Iterate over the endpoints of the node
-        // For each endpoint, iterate over clusters, see if the cluster is a supported cluster that we want to proxy, or is a BridgedDeviceBasicInformation cluster
-        const rootEndpoint = node.getRootEndpoint()
-        const endpoints = rootEndpoint?.getChildEndpoints() ?? [];
-        for (const child of endpoints) {
-            logger.debug(`Child endpoint "${child.name}" found with type: ${child.deviceType}`);
-            const aggregatedStats = child.getClusterClient(AggregatedStatsCluster);
-            if (aggregatedStats) {
-                logger.info(`Child ${child.number} supports Aggregated Stats`);
-                // logger.info(await aggregatedStats.subscribeAverageMeasuredValue10Attribute(value => console.log(`${name}.average10 = ${value}`), 5, 30));
-                // logger.info(await aggregatedStats.subscribeAverageMeasuredValue60Attribute(value => console.log(`${name}.average60 = ${value}`), 5, 120));
-            }
-            const bridgedDeviceBasicInformation = child.getClusterClient(BridgedDeviceBasicInformationCluster);
-            if (bridgedDeviceBasicInformation) {
-                logger.info(`Child ${child.number} supports BridgedDeviceBasicInformation`);
-            }
-            const temperatureSensor = child.getClusterClient(TemperatureMeasurementCluster);
-            if (temperatureSensor) {
-                logger.info(`Child ${child.number} supports TemperatureMeasurement`);
-                // Create a "proxy" endpoint for the temperature sensor
-                const proxy_endpoint = new Endpoint(
-                    TemperatureSensorDevice.with(BridgedDeviceBasicInformationServer),
-                    {
-                        id: `ple-${nodeId}`,
-                        bridgedDeviceBasicInformation: {
-                            nodeLabel: detailsForNode.advertisedName, // Main end user name for the device
-                            productName: detailsForNode.advertisedName,
-                            productLabel: detailsForNode.advertisedName,
-                            serialNumber: `node-matter-${nodeId}`,
-                            reachable: true,
-                        },
-                    }
-                );
-
-                // Add the proxy endpoint to the aggregator endpoint
-                // This allows visibility of the proxy endpoint on the north side of the bridge,
-                // which is technically visibility of the south node
-                await this.#aggregator.add(proxy_endpoint);
-            }
-        }
-
-        // TODO: This may need to be moved after connecting??
-        // TODO: Subscribe to aggregated stats ONLY, we turned off autoSubscribe above
-        node.events.attributeChanged.on(async ({ path: { clusterId, endpointId, attributeName }, value }) => {
-            logger.debug(
-                `attributeChangedCallback ${nodeId}: Attribute ${endpointId}/${clusterId}/${attributeName} changed to ${Logger.toJSON(
-                    value,
-                )}`,
-            );
-            // const actualEndpoint = (await this.#controller.getNode(nodeId)).getDeviceById(endpointId)
-            // const onOffValue = endpoint.state.onOff.onOff;
-
-            const cluster = ClusterRegistry.get(clusterId);
-            if (!cluster) {
-                throw new Error(`No such clusterID '${clusterId}'`);
-            }
-            const clusterNameProperty = cluster.name.charAt(0).toLowerCase() + cluster.name.slice(1)
-            const proxiedClusters = [
-                'AggregatedStats', // TODO: Handle this
-                'TemperatureMeasurement'
-            ]
-
-            // This is all attributes we want to match against
-            const aggregatedAttributes: string[] = []
-            for (const cluster of proxiedClusters) {
-                for (const attribute of AttributeList) {
-                    const attributeNameProperty = attribute.charAt(0).toLowerCase() + attribute.slice(1)
-                    aggregatedAttributes.push(`${cluster}.${attributeNameProperty}`)
-                }
-            }
-
-            // This is the attribute we got from the event
-            const clusterPlusAttribute = `${cluster.name}.${attributeName}`
-
-            logger.debug(`Cluster: ${cluster.name}, Attribute: ${attributeName}, Value: ${value}`)
-            logger.debug(`ClusterPlusAttribute: ${clusterPlusAttribute}`)
-            logger.debug(`AggregatedAttributes: ${aggregatedAttributes}`)
-
-            if (aggregatedAttributes.includes(clusterPlusAttribute)) {
-                logger.debug(`${clusterPlusAttribute} matched an aggregated Attribute, updating tracked metadata`)
-                if (!Object.hasOwn(this.#aggregatorData, clusterPlusAttribute)) {
-                    const empty: Record<string, MoreDatapoint> = {}
-                    this.#aggregatorData[clusterPlusAttribute] = empty;
-                }
-                const timestamp = Date.now()
-                this.#aggregatorData[clusterPlusAttribute][endpointId] = {
-                    ...this.#aggregatorData[clusterPlusAttribute][endpointId],
-                    latest: {
-                        value,
-                        timestamp
-                    },
-                }
-                
-                // With this value, we want to update our riemann sums
-                for (const length of AggregateIntervals) {
-                    const previousArea = this.#aggregatorData[clusterPlusAttribute][endpointId]?.[length]?.sum || 0
-                    const area = value * ((timestamp - this.#lastIntervalFired[length]) / 1000)
-                    this.#aggregatorData[clusterPlusAttribute][endpointId][length] = {
-                        sum: previousArea + area,
-                    }
-                }
-            } else {
-                logger.debug(`${clusterPlusAttribute} did not match an aggregated Attribute`)
-            }
-
-            // Update the proxy endpoint
-            if (proxiedClusters.includes(cluster.name)) {
-                // These need to start lowercase (set syntax)
-                await proxy_endpoint.set({
-                    [clusterNameProperty]: {
-                        [attributeName]: value
-                    }
-                })
-            } else {
-                logger.debug(`Cluster ${cluster.name} is not proxied, not updating proxy endpoint`)
-            }
-        });
-
-
-        // const devices = node.getDevices();
-        // console.log(`Devices: ${devices[0]}`);
-
-        // const rootEndpoint = node.getRootEndpoint()
-        // const endpoints = rootEndpoint?.getChildEndpoints() ?? [];
-        // const descriptor = node.getRootClusterClient(DescriptorCluster);
-        // const descriptorServer = node.getRootClusterServer(DescriptorCluster);
-        // if (descriptorServer === undefined) {
-        //     throw new Error("Descriptor server not found");
-        // }
-        // const partsList = (await descriptor?.attributes.partsList.get()) ?? [];
-        // console.log(`old PartsList: [${partsList}]`);
-
-        // for (const part of partsList) {
-        //     console.log(`Part: ${part}`);
-        //     // Get the endpoint corresponding to the part number
-        //     const endpoint = endpoints.find((ep) => ep.number === part);
-        //     if (endpoint) {
-        //         console.log(`Endpoint name for part ${part}: ${endpoint.name}`);
-        //     }
-        // }
-
-        // const endpointNumbers = endpoints.map((endpoint) => {
-        //     const number = endpoint.number
-        //     if (number === undefined) {
-        //         throw new Error("Endpoint number is undefined");
-        //     }
-        //     return number;
-        // });
-        // descriptor?.attributes.partsList.set(endpointNumbers);
-        // console.log(`new PartsList: [${await (descriptor?.attributes.partsList.get())}]`);
-        // Compose
     }
 
     async log_results() {
@@ -510,17 +498,36 @@ class VirtualMatterBrokerNode {
 }
 
 async function main() {
+    const program = new Command();
+    program.name("vmb");
+    program
+        .requiredOption("--northPort <port>")
+        .requiredOption("--northDiscriminator <discriminator>")
+        .requiredOption("--northSetupPin <pin>")
+        .requiredOption("--southDeviceCount <count>")
+        .requiredOption("--southIp <ip>")
+        .requiredOption("--southStartPort <port>")
+        .requiredOption("--southStartDiscriminator <discriminator>")
+        .requiredOption("--southSetupPin <pin>")
+        .option("--storage-clear");
+    program.parse(process.argv);
+    const args = program.opts();
     // Create a new instance of the VirtualMatterBrokerNode
     const vmb = new VirtualMatterBrokerNode();
     // Start the VMB with a unique instance node ID
-    await vmb.start("something-unique");
+    await vmb.start(
+        "something-unique",
+        parseInt(args.northPort),
+        parseInt(args.northDiscriminator),
+        parseInt(args.northSetupPin)
+    );
 
     setInterval(() => {
         vmb.log_results()
     }, 5000);
 
     // Pair each node with the VMB
-    for (let i = 0; i < NUM_DEVICES; i++) {
+    for (let i = 0; i < args.southDeviceCount; i++) {
         // const endpoint = new Endpoint(
         //     TemperatureSensorDevice.with(BridgedDeviceBasicInformationServer),
         //     {
@@ -534,8 +541,13 @@ async function main() {
         //         },
         //     },
         // );
-        await vmb.pairNode(i);
-        // await vmb.connectNode(i);
+        const nodeId = await vmb.pairNode(
+            args.southIp,
+            parseInt(args.southStartPort) + i,
+            parseInt(args.southStartDiscriminator) + i,
+            parseInt(args.southSetupPin)
+        );
+        await vmb.connectNode(nodeId);
     }
 }
 
