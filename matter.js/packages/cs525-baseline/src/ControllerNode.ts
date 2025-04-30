@@ -22,7 +22,7 @@ import { NodeStates } from "@project-chip/matter.js/device";
 import { appendFile } from 'fs';
 
 const logger = Logger.get("Controller");
-const numDevices = 15; // Number of devices to commission
+const numDevices = 20; // Number of devices to commission
 
 const environment = Environment.default;
 

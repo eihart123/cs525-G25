@@ -183,7 +183,7 @@ export class ControllerCommissioner {
         options: DiscoveryAndCommissioningOptions,
     ): Promise<{ paseSecureChannel: MessageChannel; discoveryData?: DiscoveryData }> {
         const {
-            discovery: { timeoutSeconds = 30 },
+            discovery: { timeoutSeconds = 600 },
             passcode,
         } = options;
 
@@ -435,7 +435,7 @@ export class ControllerCommissioner {
                 return await this.#context.clients.connect(address, {
                     discoveryOptions: {
                         discoveryType: NodeDiscoveryType.TimedDiscovery,
-                        timeoutSeconds: 120,
+                        timeoutSeconds: 600,
                         discoveryData,
                     },
                     allowUnknownPeer: true,

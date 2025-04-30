@@ -25,7 +25,7 @@ import { SessionsBehavior } from "../sessions/SessionsBehavior.js";
 const logger = Logger.get("SubscriptionBehavior");
 
 /** Timeout in seconds to wait for responses or discovery of the peer node when trying to re-establish a subscription. */
-const REESTABLISH_SUBSCRIPTIONS_TIMEOUT_S = 2;
+const REESTABLISH_SUBSCRIPTIONS_TIMEOUT_S = 15;
 
 /**
  * Subscriptions Persistence handling.

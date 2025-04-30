@@ -111,7 +111,7 @@ def setup_server(conn: Connection, server: str, username: str):
     )
     if result.failed:
         update_status(server, "Failed to install wireshark")
-        return
+        pass
     # Install node
     result = conn.sudo("dnf module install -y nodejs:20/common", warn=True)
     if result.failed:
@@ -166,15 +166,16 @@ def start_root_controller(
 ):
     """Start the root controller on the remote server"""
     update_status(server, f"{0} / {len(SERVERS) - 1} endnodes started")
-    msg_gotten = 0
-    while msg_gotten < len(SERVERS) - 1:
-        try:
-            server_gotten = message_queue.get(timeout=None)
-            msg_gotten += 1
-            update_status(server, f"{msg_gotten} / {len(SERVERS) - 1} endnodes started")
-            status[server]["output"] = "Last from" + server_gotten
-        except Exception as e:
-            raise e
+
+    # msg_gotten = 0
+    # while msg_gotten < len(SERVERS) - 1:
+    #     try:
+    #         server_gotten = message_queue.get(timeout=None)
+    #         msg_gotten += 1
+    #         update_status(server, f"{msg_gotten} / {len(SERVERS) - 1} endnodes started")
+    #         status[server]["output"] = "Last from" + server_gotten
+    #     except Exception as e:
+    #         raise e
 
     update_status(server, "Starting root controller")
     dir = "cs525" if with_vmb else "cs525-baseline"
@@ -203,14 +204,24 @@ def start_root_controller(
         update_status(server, "Failed to start root controller")
         return
     with mutex:
-        status[server]["output"] = cmd1 + "\n" + cmd2
+        status[server]["output"] = cmd2
+    update_status(server, "Waiting plz")
+    sleep(20)
     update_status(server, "Online")
+
+    for server in SERVERS:
+        if server == CONTROLLER_SERVER:
+            continue
+        message_queue.put("STARTUP ALERT")
 
 
 def startup_endnodes(
     conn: Connection, server: str, with_vmb: bool, message_queue: Queue
 ):
     """Start the endnodes on the remote server"""
+    update_status(server, "Waiting for controlla")
+    message_queue.get()
+
     update_status(server, "Starting tcpdump")
     dir = "cs525" if with_vmb else "cs525-baseline"
     pcap_dump_file = f"tcpdump_{server.split('.')[0]}.pcap"
@@ -232,12 +243,12 @@ def startup_endnodes(
     )
 
     with mutex:
-        status[server]["output"] = cmd1 + "\n" + cmd2
+        status[server]["output"] = cmd2
     if result.failed:
         update_status(server, "Failed to start endnodes")
         return
-    update_status(server, "Waiting some time so that it can start")
-    sleep(20)
+    # update_status(server, "Waiting some time so that it can start")
+    # sleep(20)
     update_status(server, "Online")
     message_queue.put(server)
 
@@ -413,7 +424,7 @@ def ssh_connect_and_setup(
 
         # git clone the repo into the remote directory, if it does, run git pull, else git clone
         # Check if the server directory exists
-        result = conn.run(f"test -d {REMOTE_SERVER_DIR}", warn=True)
+        result = conn.run(f"test -d {REMOTE_SERVER_DIR}/.git", warn=True)
 
         if not result.failed:
             # git pull
@@ -427,12 +438,15 @@ def ssh_connect_and_setup(
                 return
         else:
             # git clone
-            result = conn.run(f"git clone {GIT_REPO} {REMOTE_SERVER_DIR}", warn=True)
+            result = conn.run(
+                f"rm -rf {REMOTE_SERVER_DIR} && git clone {GIT_REPO} {REMOTE_SERVER_DIR}",
+                warn=True,
+            )
             if result.failed:
                 update_status(server, "Failed to clone repository")
                 return
             # Check if the server directory was created
-            result = conn.run(f"test -d {REMOTE_SERVER_DIR}", warn=True)
+            result = conn.run(f"test -d {REMOTE_SERVER_DIR}/.git", warn=True)
             if result.failed:
                 update_status(server, "Failed to create server directory")
                 return
@@ -532,8 +546,8 @@ def display_status(stdscr):
                 stdscr.addstr(line_idx, 0, f"{server}: {server_status}", color)
                 line_idx += 1
                 output = status[server].get("output", "-" * 50)
-                # get the last three lines of the output
-                output = "\n".join(output.splitlines()[-3:])
+                # get the last two lines of the output
+                output = "\n".join(output.splitlines()[-1:])
 
                 stdscr.addstr(line_idx, 0, output, curses.A_BOLD)
                 line_idx += output.count("\n") + 1
