@@ -82,7 +82,7 @@ export type ExchangeSendOptions = {
  * The maximum number of transmission attempts for a given reliable message. The sender MAY choose this value as it
  * sees fit.
  */
-const MRP_MAX_TRANSMISSIONS = 5;
+const MRP_MAX_TRANSMISSIONS = 50;
 
 /** The base number for the exponential backoff equation. */
 const MRP_BACKOFF_BASE = 1.6;
