@@ -219,7 +219,7 @@ export class BleScanner implements Scanner {
 
     async findCommissionableDevices(
         identifier: CommissionableDeviceIdentifiers,
-        timeoutSeconds = 10,
+        timeoutSeconds = 600,
         ignoreExistingRecords = false,
     ): Promise<CommissionableDevice[]> {
         let storedRecords = this.getCommissionableDevices(identifier);
@@ -245,7 +245,7 @@ export class BleScanner implements Scanner {
     async findCommissionableDevicesContinuously(
         identifier: CommissionableDeviceIdentifiers,
         callback: (device: CommissionableDevice) => void,
-        timeoutSeconds = 60,
+        timeoutSeconds = 600,
     ): Promise<CommissionableDevice[]> {
         const discoveredDevices = new Set<string>();
 

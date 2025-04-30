@@ -231,7 +231,7 @@ export class BleScanner implements Scanner {
 
     async findCommissionableDevices(
         identifier: CommissionableDeviceIdentifiers,
-        timeoutSeconds = 10,
+        timeoutSeconds = 600,
         ignoreExistingRecords = false,
     ): Promise<CommissionableDevice[]> {
         let storedRecords = this.getCommissionableDevices(identifier);
