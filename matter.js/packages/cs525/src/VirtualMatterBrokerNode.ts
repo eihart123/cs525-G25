@@ -505,6 +505,7 @@ async function main() {
         .requiredOption("--northDiscriminator <discriminator>")
         .requiredOption("--northSetupPin <pin>")
         .requiredOption("--southDeviceCount <count>")
+        // TODO: Update this to use an IP to port range AND a discriminator/setup pin for each IP/port range
         .requiredOption("--southIp <ip>")
         .requiredOption("--southStartPort <port>")
         .requiredOption("--southStartDiscriminator <discriminator>")
