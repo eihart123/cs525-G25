@@ -174,15 +174,15 @@ def start_root_controller(
     """Start the root controller on the remote server"""
     # update_status(server, f"{0} / {len(SERVERS) - 1} endnodes started")
 
-    # msg_gotten = 0
-    # while msg_gotten < len(SERVERS) - 1:
-    #     try:
-    #         server_gotten = message_queue.get(timeout=None)
-    #         msg_gotten += 1
-    #         update_status(server, f"{msg_gotten} / {len(SERVERS) - 1} endnodes started")
-    #         status[server]["output"] = "Last from" + server_gotten
-    #     except Exception as e:
-    #         raise e
+    msg_gotten = 0
+    while msg_gotten < len(SERVERS) - 1:
+        try:
+            server_gotten = message_queue.get(timeout=None)
+            msg_gotten += 1
+            update_status(server, f"{msg_gotten} / {len(SERVERS) - 1} endnodes started")
+            status[server]["output"] = "Last from" + server_gotten
+        except Exception as e:
+            raise e
 
     update_status(server, "Starting root controller")
     dir = "cs525" if with_vmb else "cs525-baseline"
@@ -234,14 +234,14 @@ def startup_endnodes(
     server_num = int(server.split(".")[0][-2:])
 
     # server_num 2 should be the first end node
-    while True:
-        items = message_queue.snapshot()
-        if len(items) == 1:
-            # If the previous finished, kick off ours
-            if items[0] == server_num - 1:
-                _ = message_queue.get()
-                break
-        sleep(1)
+    # while True:
+    #     items = message_queue.snapshot()
+    #     if len(items) == 1:
+    #         # If the previous finished, kick off ours
+    #         if items[0] == server_num - 1:
+    #             _ = message_queue.get()
+    #             break
+    #     sleep(1)
 
     update_status(server, "Starting tcpdump")
     dir = "cs525" if with_vmb else "cs525-baseline"
@@ -269,9 +269,10 @@ def startup_endnodes(
         update_status(server, "Failed to start endnodes")
         return
     update_status(server, "Waiting some time so that it can start")
-    sleep(5)
+    sleep(20)
     update_status(server, "Online")
-    message_queue.put(server_num)
+    # message_queue.put(server_num)
+    message_queue.put(server)
 
 
 # def start_server(conn, server):
