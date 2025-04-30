@@ -167,15 +167,15 @@ def start_root_controller(
     """Start the root controller on the remote server"""
     update_status(server, f"{0} / {len(SERVERS) - 1} endnodes started")
 
-    # msg_gotten = 0
-    # while msg_gotten < len(SERVERS) - 1:
-    #     try:
-    #         server_gotten = message_queue.get(timeout=None)
-    #         msg_gotten += 1
-    #         update_status(server, f"{msg_gotten} / {len(SERVERS) - 1} endnodes started")
-    #         status[server]["output"] = "Last from" + server_gotten
-    #     except Exception as e:
-    #         raise e
+    msg_gotten = 0
+    while msg_gotten < len(SERVERS) - 1:
+        try:
+            server_gotten = message_queue.get(timeout=None)
+            msg_gotten += 1
+            update_status(server, f"{msg_gotten} / {len(SERVERS) - 1} endnodes started")
+            status[server]["output"] = "Last from" + server_gotten
+        except Exception as e:
+            raise e
 
     update_status(server, "Starting root controller")
     dir = "cs525" if with_vmb else "cs525-baseline"
@@ -205,14 +205,14 @@ def start_root_controller(
         return
     with mutex:
         status[server]["output"] = cmd2
-    update_status(server, "Waiting plz")
-    sleep(20)
+    # update_status(server, "Waiting plz")
+    # sleep(20)
     update_status(server, "Online")
 
-    for server in SERVERS:
-        if server == CONTROLLER_SERVER:
-            continue
-        message_queue.put("STARTUP ALERT")
+    # for server in SERVERS:
+    #     if server == CONTROLLER_SERVER:
+    #         continue
+    #     message_queue.put("STARTUP ALERT")
 
 
 def startup_endnodes(
@@ -247,8 +247,8 @@ def startup_endnodes(
     if result.failed:
         update_status(server, "Failed to start endnodes")
         return
-    # update_status(server, "Waiting some time so that it can start")
-    # sleep(20)
+    update_status(server, "Waiting some time so that it can start")
+    sleep(20)
     update_status(server, "Online")
     message_queue.put(server)
 
