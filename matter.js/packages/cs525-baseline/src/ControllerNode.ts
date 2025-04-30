@@ -44,25 +44,25 @@ logger.info(
 );
 
 const vm_addresses = [
-    // {name: "vm2", ip: "fe80::250:56ff:fe8c:57da"}, // VM 2
+    {name: "vm2", ip: "fe80::250:56ff:fe8c:57da"}, // VM 2
     {name: "vm3", ip: "fe80::250:56ff:fe8c:dc43"},
-    // {name: "vm4", ip: "fe80::250:56ff:fe8c:34c3"},
-    // {name: "vm5", ip: "fe80::250:56ff:fe8c:50b4"},
-    // {name: "vm6", ip: "fe80::250:56ff:fe8c:bfd9"},
-    // {name: "vm7", ip: "fe80::250:56ff:fe8c:69e1"},
-    // {name: "vm8", ip: "fe80::250:56ff:fe8c:cc0b"},
-    // {name: "vm9", ip: "fe80::250:56ff:fe8c:9744"},
-    // {name: "vm10", ip: "fe80::250:56ff:fe8c:d55"},
-    // {name: "vm11", ip: "fe80::250:56ff:fe8c:1ec1"},
-    // {name: "vm12", ip: "fe80::250:56ff:fe8c:1814"},
-    // {name: "vm13", ip: "fe80::250:56ff:fe8c:643e"},
-    // {name: "vm14", ip: "fe80::250:56ff:fe8c:b863"},
-    // {name: "vm15", ip: "fe80::250:56ff:fe8c:7b42"},
-    // {name: "vm16", ip: "fe80::250:56ff:fe8c:6c49"},
-    // {name: "vm17", ip: "fe80::250:56ff:fe8c:4ebd"},
-    // {name: "vm18", ip: "fe80::250:56ff:fe8c:c3b8"},
-    // {name: "vm19", ip: "fe80::250:56ff:fe8c:7915"},
-    // {name: "vm20", ip: "fe80::250:56ff:fe8c:8ca6"},
+    {name: "vm4", ip: "fe80::250:56ff:fe8c:34c3"},
+    {name: "vm5", ip: "fe80::250:56ff:fe8c:50b4"},
+    {name: "vm6", ip: "fe80::250:56ff:fe8c:bfd9"},
+    {name: "vm7", ip: "fe80::250:56ff:fe8c:69e1"},
+    {name: "vm8", ip: "fe80::250:56ff:fe8c:cc0b"},
+    {name: "vm9", ip: "fe80::250:56ff:fe8c:9744"},
+    {name: "vm10", ip: "fe80::250:56ff:fe8c:d55"},
+    {name: "vm11", ip: "fe80::250:56ff:fe8c:1ec1"},
+    {name: "vm12", ip: "fe80::250:56ff:fe8c:1814"},
+    {name: "vm13", ip: "fe80::250:56ff:fe8c:643e"},
+    {name: "vm14", ip: "fe80::250:56ff:fe8c:b863"},
+    {name: "vm15", ip: "fe80::250:56ff:fe8c:7b42"},
+    {name: "vm16", ip: "fe80::250:56ff:fe8c:6c49"},
+    {name: "vm17", ip: "fe80::250:56ff:fe8c:4ebd"},
+    {name: "vm18", ip: "fe80::250:56ff:fe8c:c3b8"},
+    {name: "vm19", ip: "fe80::250:56ff:fe8c:7915"},
+    {name: "vm20", ip: "fe80::250:56ff:fe8c:8ca6"},
 ];
 
 const all_endnodes = vm_addresses.flatMap((vm) => {
@@ -80,7 +80,7 @@ const all_endnodes = vm_addresses.flatMap((vm) => {
 
 class ControllerNode {
     async start() {
-        Logger.level = "debug";
+        Logger.level = "info";
         logger.info(`node-matter Controller started`);
 
         /**

@@ -22,6 +22,7 @@ import { exit } from "node:process";
 async function main() {
     const port = process.env.PORT;
     console.log({ port });
+
     if (port === undefined) {
         // Exit if DEVICE_ID is not provided
         console.error("PORT environment variable is not set. Please set it to a valid device ID.");
@@ -29,10 +30,11 @@ async function main() {
         // Alternatively you could fallback to a default value or handle it differently
         // const deviceID = '1'; // Fallback to a default device ID
     }
+
     const deviceID = port;
     /** Initialize configuration values */
     console.log("Initializing configuration...");
-    Logger.level = "debug";
+    Logger.level = "info";
     // logger.level = LogLevel.NOTICE; // Set the log level for the logger to INFO
     // logger.info("Hi there")
     // Logger.setDefaultLoglevelForLogger("EndpointStructureLogger", LogLevel.INFO); // Set the default log level for the MatterNode logger
