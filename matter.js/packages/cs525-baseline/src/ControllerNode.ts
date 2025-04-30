@@ -80,7 +80,7 @@ const all_endnodes = vm_addresses.flatMap((vm) => {
 
 class ControllerNode {
     async start() {
-        Logger.level = "info";
+        Logger.level = "debug";
         logger.info(`node-matter Controller started`);
 
         /**

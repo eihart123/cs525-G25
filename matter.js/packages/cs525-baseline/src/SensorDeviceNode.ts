@@ -32,7 +32,7 @@ async function main() {
     const deviceID = port;
     /** Initialize configuration values */
     console.log("Initializing configuration...");
-    Logger.level = "info";
+    Logger.level = "debug";
     // logger.level = LogLevel.NOTICE; // Set the log level for the logger to INFO
     // logger.info("Hi there")
     // Logger.setDefaultLoglevelForLogger("EndpointStructureLogger", LogLevel.INFO); // Set the default log level for the MatterNode logger
