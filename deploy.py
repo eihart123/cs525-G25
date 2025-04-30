@@ -13,6 +13,13 @@ from pathlib import Path, PurePosixPath
 from time import sleep
 from dotenv import load_dotenv
 
+
+class SnapshotQueue(Queue):
+    def snapshot(self):
+        with self.mutex:
+            return list(self.queue)
+
+
 load_dotenv()
 # logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -162,20 +169,20 @@ filter = ""
 
 
 def start_root_controller(
-    conn: Connection, server: str, with_vmb: bool, message_queue: Queue
+    conn: Connection, server: str, with_vmb: bool, message_queue: SnapshotQueue
 ):
     """Start the root controller on the remote server"""
-    update_status(server, f"{0} / {len(SERVERS) - 1} endnodes started")
+    # update_status(server, f"{0} / {len(SERVERS) - 1} endnodes started")
 
-    msg_gotten = 0
-    while msg_gotten < len(SERVERS) - 1:
-        try:
-            server_gotten = message_queue.get(timeout=None)
-            msg_gotten += 1
-            update_status(server, f"{msg_gotten} / {len(SERVERS) - 1} endnodes started")
-            status[server]["output"] = "Last from" + server_gotten
-        except Exception as e:
-            raise e
+    # msg_gotten = 0
+    # while msg_gotten < len(SERVERS) - 1:
+    #     try:
+    #         server_gotten = message_queue.get(timeout=None)
+    #         msg_gotten += 1
+    #         update_status(server, f"{msg_gotten} / {len(SERVERS) - 1} endnodes started")
+    #         status[server]["output"] = "Last from" + server_gotten
+    #     except Exception as e:
+    #         raise e
 
     update_status(server, "Starting root controller")
     dir = "cs525" if with_vmb else "cs525-baseline"
@@ -207,6 +214,9 @@ def start_root_controller(
         status[server]["output"] = cmd2
     # update_status(server, "Waiting plz")
     # sleep(20)
+
+    server_num = int(server.split(".")[0][-2:])
+    message_queue.put(server_num)
     update_status(server, "Online")
 
     # for server in SERVERS:
@@ -216,11 +226,22 @@ def start_root_controller(
 
 
 def startup_endnodes(
-    conn: Connection, server: str, with_vmb: bool, message_queue: Queue
+    conn: Connection, server: str, with_vmb: bool, message_queue: SnapshotQueue
 ):
     """Start the endnodes on the remote server"""
-    update_status(server, "Waiting for controlla")
-    message_queue.get()
+    # update_status(server, "Waiting for controlla")
+    # message_queue.get()
+    server_num = int(server.split(".")[0][-2:])
+
+    # server_num 2 should be the first end node
+    while True:
+        items = message_queue.snapshot()
+        if len(items) == 1:
+            # If the previous finished, kick off ours
+            if items[0] == server_num - 1:
+                _ = message_queue.get()
+                break
+        sleep(1)
 
     update_status(server, "Starting tcpdump")
     dir = "cs525" if with_vmb else "cs525-baseline"
@@ -248,9 +269,9 @@ def startup_endnodes(
         update_status(server, "Failed to start endnodes")
         return
     update_status(server, "Waiting some time so that it can start")
-    sleep(20)
+    sleep(5)
     update_status(server, "Online")
-    message_queue.put(server)
+    message_queue.put(server_num)
 
 
 # def start_server(conn, server):
@@ -286,7 +307,7 @@ def ssh_connect_and_restart(
     password: str,
     with_vmb: bool,
     is_root: bool,
-    message_queue: Queue,
+    message_queue: SnapshotQueue,
 ):
     """Connect to a server using SSH and restart the server"""
     try:
@@ -326,7 +347,7 @@ def ssh_connect_and_get_logs(
     password: str,
     with_vmb: bool,
     is_root: bool,
-    message_queue: Queue,
+    message_queue: SnapshotQueue,
 ):
     """Connect to a server using SSH and get the logs"""
 
@@ -389,7 +410,7 @@ def ssh_connect_and_setup(
     password: str,
     with_vmb: bool,
     is_root: bool,
-    message_queue: Queue,
+    message_queue: SnapshotQueue,
 ):
     """Connect to a server using SSH and setup the server"""
     try:
@@ -474,7 +495,7 @@ def ssh_connect_and_stop(
     password: str,
     with_vmb: bool,
     is_root: bool,
-    message_queue: Queue,
+    message_queue: SnapshotQueue,
 ):
     """Connect to a server using SSH and stop the server process"""
     try:
@@ -594,7 +615,9 @@ def make_config(server: str):
 threads = []
 username = ""
 with_vmb = False
-message_queue = Queue()
+
+
+message_queue = SnapshotQueue()
 
 
 def main():

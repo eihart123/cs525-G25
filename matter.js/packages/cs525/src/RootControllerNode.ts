@@ -26,16 +26,25 @@ logger.info(
 );
 
 const vmb_addresses = [
-    {name: "vmb1", ip: "fe80::250:56ff:fe8c:8777", port: 5540}, // VM 2
-    {name: "vmb2", ip: "fe80::250:56ff:fe8c:dc43", port: 5540},
-    {name: "vmb3", ip: "fe80::250:56ff:fe8c:34c3", port: 5540},
-    {name: "vmb4", ip: "fe80::250:56ff:fe8c:50b4", port: 5540},
-    {name: "vmb5", ip: "fe80::250:56ff:fe8c:bfd9", port: 5540},
-    {name: "vmb6", ip: "fe80::250:56ff:fe8c:69e1", port: 5540},
-    {name: "vmb7", ip: "fe80::250:56ff:fe8c:cc0b", port: 5540},
-    {name: "vmb8", ip: "fe80::250:56ff:fe8c:9744", port: 5540},
-    {name: "vmb9", ip: "fe80::250:56ff:fe8c:d55", port: 5540},
-    {name: "vmb10", ip: "fe80::250:56ff:fe8c:1ec1", port: 5540},
+    {name: "vmb2", ip: "fe80::250:56ff:fe8c:57da", port: 5540},
+    {name: "vmb3", ip: "fe80::250:56ff:fe8c:dc43", port: 5540},
+    {name: "vmb4", ip: "fe80::250:56ff:fe8c:34c3", port: 5540},
+    {name: "vmb5", ip: "fe80::250:56ff:fe8c:50b4", port: 5540},
+    {name: "vmb6", ip: "fe80::250:56ff:fe8c:bfd9", port: 5540},
+    {name: "vmb7", ip: "fe80::250:56ff:fe8c:69e1", port: 5540},
+    {name: "vmb8", ip: "fe80::250:56ff:fe8c:cc0b", port: 5540},
+    {name: "vmb9", ip: "fe80::250:56ff:fe8c:9744", port: 5540},
+    {name: "vmb10", ip: "fe80::250:56ff:fe8c:d55", port: 5540},
+    {name: "vmb11", ip: "fe80::250:56ff:fe8c:1ec1", port: 5540},
+    {name: "vmb12", ip: "fe80::250:56ff:fe8c:1814", port: 5540},
+    {name: "vmb13", ip: "fe80::250:56ff:fe8c:643e", port: 5540},
+    {name: "vmb14", ip: "fe80::250:56ff:fe8c:b863", port: 5540},
+    {name: "vmb15", ip: "fe80::250:56ff:fe8c:7b42", port: 5540},
+    {name: "vmb16", ip: "fe80::250:56ff:fe8c:6c49", port: 5540},
+    {name: "vmb17", ip: "fe80::250:56ff:fe8c:4ebd", port: 5540},
+    {name: "vmb18", ip: "fe80::250:56ff:fe8c:c3b8", port: 5540},
+    {name: "vmb19", ip: "fe80::250:56ff:fe8c:7915", port: 5540},
+    {name: "vmb20", ip: "fe80::250:56ff:fe8c:8ca6", port: 5540},
 ];
 
 class RootControllerNode {
