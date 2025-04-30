@@ -6,6 +6,7 @@ import re
 import threading
 from fabric import Connection, Config
 from invoke.watchers import StreamWatcher
+from queue import Queue
 
 from getpass import getpass
 from pathlib import Path, PurePosixPath
@@ -160,8 +161,21 @@ def build_server(conn: Connection, server: str):
 filter = ""
 
 
-def start_root_controller(conn: Connection, server: str, with_vmb: bool):
+def start_root_controller(
+    conn: Connection, server: str, with_vmb: bool, message_queue: Queue
+):
     """Start the root controller on the remote server"""
+    update_status(server, f"{0} / {len(SERVERS) - 1} endnodes started")
+    msg_gotten = 0
+    while msg_gotten < len(SERVERS) - 1:
+        try:
+            server_gotten = message_queue.get(timeout=None)
+            msg_gotten += 1
+            update_status(server, f"{msg_gotten} / {len(SERVERS) - 1} endnodes started")
+            status[server]["output"] = "Last from" + server_gotten
+        except Exception as e:
+            raise e
+
     update_status(server, "Starting root controller")
     dir = "cs525" if with_vmb else "cs525-baseline"
     serverFile = "RootControllerNode.js" if with_vmb else "ControllerNode.js"
@@ -193,7 +207,9 @@ def start_root_controller(conn: Connection, server: str, with_vmb: bool):
     update_status(server, "Online")
 
 
-def startup_endnodes(conn: Connection, server: str, with_vmb: bool):
+def startup_endnodes(
+    conn: Connection, server: str, with_vmb: bool, message_queue: Queue
+):
     """Start the endnodes on the remote server"""
     update_status(server, "Starting tcpdump")
     dir = "cs525" if with_vmb else "cs525-baseline"
@@ -220,7 +236,10 @@ def startup_endnodes(conn: Connection, server: str, with_vmb: bool):
     if result.failed:
         update_status(server, "Failed to start endnodes")
         return
+    update_status(server, "Waiting some time so that it can start")
+    sleep(20)
     update_status(server, "Online")
+    message_queue.put(server)
 
 
 # def start_server(conn, server):
@@ -251,7 +270,12 @@ def recursive_upload(conn: Connection, local_path, remote_path):
 
 
 def ssh_connect_and_restart(
-    server: str, username: str, password: str, with_vmb: bool, is_root: bool
+    server: str,
+    username: str,
+    password: str,
+    with_vmb: bool,
+    is_root: bool,
+    message_queue: Queue,
 ):
     """Connect to a server using SSH and restart the server"""
     try:
@@ -270,9 +294,13 @@ def ssh_connect_and_restart(
         # start_root_controller(conn, server, with_vmb=with_vmb)
         if is_root:
             # start the root controller
-            start_root_controller(conn, server, with_vmb=with_vmb)
+            start_root_controller(
+                conn, server, with_vmb=with_vmb, message_queue=message_queue
+            )
         else:
-            startup_endnodes(conn, server, with_vmb=with_vmb)
+            startup_endnodes(
+                conn, server, with_vmb=with_vmb, message_queue=message_queue
+            )
         # start_server(conn, server)
 
     except Exception as e:
@@ -282,7 +310,12 @@ def ssh_connect_and_restart(
 
 
 def ssh_connect_and_get_logs(
-    server: str, username: str, password: str, with_vmb: bool, is_root: bool
+    server: str,
+    username: str,
+    password: str,
+    with_vmb: bool,
+    is_root: bool,
+    message_queue: Queue,
 ):
     """Connect to a server using SSH and get the logs"""
 
@@ -340,7 +373,12 @@ def ssh_connect_and_get_logs(
 
 
 def ssh_connect_and_setup(
-    server: str, username: str, password: str, with_vmb: bool, is_root: bool
+    server: str,
+    username: str,
+    password: str,
+    with_vmb: bool,
+    is_root: bool,
+    message_queue: Queue,
 ):
     """Connect to a server using SSH and setup the server"""
     try:
@@ -402,9 +440,13 @@ def ssh_connect_and_setup(
         # start_server(conn, server)
         if is_root:
             # start the root controller
-            start_root_controller(conn, server, with_vmb=with_vmb)
+            start_root_controller(
+                conn, server, with_vmb=with_vmb, message_queue=message_queue
+            )
         else:
-            startup_endnodes(conn, server, with_vmb=with_vmb)
+            startup_endnodes(
+                conn, server, with_vmb=with_vmb, message_queue=message_queue
+            )
 
     except Exception as e:
         update_status(server, f"Error: {str(e)}")
@@ -413,7 +455,12 @@ def ssh_connect_and_setup(
 
 
 def ssh_connect_and_stop(
-    server: str, username: str, password: str, with_vmb: bool, is_root: bool
+    server: str,
+    username: str,
+    password: str,
+    with_vmb: bool,
+    is_root: bool,
+    message_queue: Queue,
 ):
     """Connect to a server using SSH and stop the server process"""
     try:
@@ -502,7 +549,7 @@ def display_status(stdscr):
                 is_root = server == CONTROLLER_SERVER
                 thread = threading.Thread(
                     target=ssh_connect_and_get_logs,
-                    args=(server, username, password, with_vmb, is_root),
+                    args=(server, username, password, with_vmb, is_root, message_queue),
                 )
                 thread.start()
                 threads.append(thread)
@@ -533,6 +580,7 @@ def make_config(server: str):
 threads = []
 username = ""
 with_vmb = False
+message_queue = Queue()
 
 
 def main():
@@ -582,7 +630,8 @@ def main():
     for server in SERVERS:
         is_root = server == CONTROLLER_SERVER
         thread = threading.Thread(
-            target=target_action, args=(server, username, password, with_vmb, is_root)
+            target=target_action,
+            args=(server, username, password, with_vmb, is_root, message_queue),
         )
         thread.start()
         threads.append(thread)

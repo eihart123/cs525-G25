@@ -702,7 +702,7 @@ export class IncomingInteractionClientMessenger extends InteractionMessenger {
 
     async readAggregateDataReport(expectedSubscriptionIds?: number[]): Promise<DataReport> {
         let result: DataReport | undefined;
-        console.log("readAggregateDataReport");
+        // console.log("readAggregateDataReport");
 
         for await (const report of this.readDataReports()) {
             if (expectedSubscriptionIds !== undefined) {
