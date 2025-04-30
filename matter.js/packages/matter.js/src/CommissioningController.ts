@@ -645,7 +645,7 @@ export class CommissioningController {
         identifierData: CommissionableDeviceIdentifiers,
         discoveryCapabilities?: TypeFromPartialBitSchema<typeof DiscoveryCapabilitiesBitmap>,
         discoveredCallback?: (device: CommissionableDevice) => void,
-        timeoutSeconds = 600,
+        timeoutSeconds = 120,
     ) {
         this.#assertIsAddedToMatterServer();
         const controller = this.#assertControllerIsStarted();

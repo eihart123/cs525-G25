@@ -38,7 +38,7 @@ export class ControllerDiscovery {
     static async discoverDeviceAddressesByIdentifier(
         scanners: Array<Scanner>,
         identifier: CommissionableDeviceIdentifiers,
-        timeoutSeconds = 600,
+        timeoutSeconds = 120,
     ): Promise<CommissionableDevice[]> {
         logger.info(`Start Discovering devices using identifier ${Diagnostic.json(identifier)} ...`);
 

@@ -465,7 +465,7 @@ export class MatterController {
             peerNodeId,
             {
                 discoveryType: NodeDiscoveryType.TimedDiscovery,
-                timeoutSeconds: 600,
+                timeoutSeconds: 120,
                 discoveryData,
             },
             true,

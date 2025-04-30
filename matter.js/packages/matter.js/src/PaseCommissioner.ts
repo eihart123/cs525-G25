@@ -153,7 +153,7 @@ export class PaseCommissioner {
         identifierData: CommissionableDeviceIdentifiers,
         discoveryCapabilities?: TypeFromPartialBitSchema<typeof DiscoveryCapabilitiesBitmap>,
         discoveredCallback?: (device: CommissionableDevice) => void,
-        timeoutSeconds = 600,
+        timeoutSeconds = 120,
     ) {
         const controller = this.assertControllerIsStarted();
         return await ControllerDiscovery.discoverCommissionableDevices(
