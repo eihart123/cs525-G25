@@ -1,5 +1,7 @@
 import argparse
 import curses
+from io import StringIO
+import json
 import logging
 import os
 import re
@@ -32,6 +34,13 @@ REMOTE_GROUP = "csvm525-stu"
 GIT_REPO = "https://github.com/eihart123/cs525-G25.git"
 # List of servers
 CONTROLLER_SERVER = "sp25-cs525-2501.cs.illinois.edu"
+LEVEL_1_VMB_SERVERS = [
+    "sp25-cs525-2502.cs.illinois.edu",
+    "sp25-cs525-2503.cs.illinois.edu",
+    "sp25-cs525-2504.cs.illinois.edu",
+    "sp25-cs525-2505.cs.illinois.edu",
+]
+
 SERVERS = [
     "sp25-cs525-2501.cs.illinois.edu",
     "sp25-cs525-2502.cs.illinois.edu",
@@ -53,6 +62,65 @@ SERVERS = [
     "sp25-cs525-2518.cs.illinois.edu",
     "sp25-cs525-2519.cs.illinois.edu",
     "sp25-cs525-2520.cs.illinois.edu",
+]
+
+ip_mappings = {
+    "sp25-cs525-2501.cs.illinois.edu": "fe80::250:56ff:fe8c:8777",
+    "sp25-cs525-2502.cs.illinois.edu": "fe80::250:56ff:fe8c:57da",
+    "sp25-cs525-2503.cs.illinois.edu": "fe80::250:56ff:fe8c:dc43",
+    "sp25-cs525-2504.cs.illinois.edu": "fe80::250:56ff:fe8c:34c3",
+    "sp25-cs525-2505.cs.illinois.edu": "fe80::250:56ff:fe8c:50b4",
+    "sp25-cs525-2506.cs.illinois.edu": "fe80::250:56ff:fe8c:bfd9",
+    "sp25-cs525-2507.cs.illinois.edu": "fe80::250:56ff:fe8c:69e1",
+    "sp25-cs525-2508.cs.illinois.edu": "fe80::250:56ff:fe8c:cc0b",
+    "sp25-cs525-2509.cs.illinois.edu": "fe80::250:56ff:fe8c:9744",
+    "sp25-cs525-2510.cs.illinois.edu": "fe80::250:56ff:fe8c:d55",
+    "sp25-cs525-2511.cs.illinois.edu": "fe80::250:56ff:fe8c:1ec1",
+    "sp25-cs525-2512.cs.illinois.edu": "fe80::250:56ff:fe8c:1814",
+    "sp25-cs525-2513.cs.illinois.edu": "fe80::250:56ff:fe8c:643e",
+    "sp25-cs525-2514.cs.illinois.edu": "fe80::250:56ff:fe8c:b863",
+    "sp25-cs525-2515.cs.illinois.edu": "fe80::250:56ff:fe8c:7b42",
+    "sp25-cs525-2516.cs.illinois.edu": "fe80::250:56ff:fe8c:6c49",
+    "sp25-cs525-2517.cs.illinois.edu": "fe80::250:56ff:fe8c:4ebd",
+    "sp25-cs525-2518.cs.illinois.edu": "fe80::250:56ff:fe8c:c3b8",
+    "sp25-cs525-2519.cs.illinois.edu": "fe80::250:56ff:fe8c:7915",
+    "sp25-cs525-2520.cs.illinois.edu": "fe80::250:56ff:fe8c:8ca6",
+}
+
+# Level 1 to level 2 mappings
+vmb_vmb_mappings = [
+    {
+        "sp25-cs525-2502.cs.illinois.edu": [
+            "sp25-cs525-2505.cs.illinois.edu",
+            "sp25-cs525-2506.cs.illinois.edu",
+            "sp25-cs525-2507.cs.illinois.edu",
+            "sp25-cs525-2508.cs.illinois.edu",
+        ]
+    },
+    {
+        "sp25-cs525-2503.cs.illinois.edu": [
+            "sp25-cs525-2509.cs.illinois.edu",
+            "sp25-cs525-2510.cs.illinois.edu",
+            "sp25-cs525-2511.cs.illinois.edu",
+            "sp25-cs525-2512.cs.illinois.edu",
+        ]
+    },
+    {
+        "sp25-cs525-2504.cs.illinois.edu": [
+            "sp25-cs525-2513.cs.illinois.edu",
+            "sp25-cs525-2514.cs.illinois.edu",
+            "sp25-cs525-2515.cs.illinois.edu",
+            "sp25-cs525-2516.cs.illinois.edu",
+        ]
+    },
+    {
+        "sp25-cs525-2505.cs.illinois.edu": [
+            "sp25-cs525-2517.cs.illinois.edu",
+            "sp25-cs525-2518.cs.illinois.edu",
+            "sp25-cs525-2519.cs.illinois.edu",
+            "sp25-cs525-2520.cs.illinois.edu",
+        ]
+    },
 ]
 
 status = {server: {"msg": "Waiting"} for server in SERVERS}
@@ -275,6 +343,156 @@ def startup_endnodes(
     message_queue.put(server)
 
 
+def install_config(conn: Connection, server: str):
+    """Install the config on the remote server"""
+
+    ip_mappings[server]
+    is_root = server == CONTROLLER_SERVER
+    is_level_1_vmb = server in LEVEL_1_VMB_SERVERS
+
+    if is_root:
+        root_config_file = "root_config.json"
+        root_config = []
+        for i, vmb_server in enumerate(LEVEL_1_VMB_SERVERS):
+            root_config.append(
+                {
+                    "name": "level_1_vmb_{vmb_server}",
+                    "ip": ip_mappings[vmb_server],
+                    "port": 3100 + i,
+                }
+            )
+
+        root_config_file_io = StringIO()
+        json.dump(root_config, root_config_file_io)
+
+        result = conn.put(
+            root_config_file_io,
+            f"{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{root_config_file}",
+        )
+        if result.failed:
+            update_status(
+                server,
+                "Failed to install config file '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{root_config_file}'",
+            )
+            return
+        else:
+            update_status(
+                server,
+                "Installed config '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{root_config_file}'",
+            )
+
+    if is_level_1_vmb:
+        level_2_vmb_port = 3200 + LEVEL_1_VMB_SERVERS.index(server) * 8
+
+        level1_config_file = "vmb_level_1_config.json"
+        level1_config = []
+        for i, vmb_server in enumerate(vmb_vmb_mappings):
+            if server in vmb_server:
+                for level_2_vmb_server in vmb_server[server]:
+                    level1_config.extend(
+                        [
+                            {
+                                "name": f"level_2_vmb_{level_2_vmb_server}_1",
+                                "ip": ip_mappings[level_2_vmb_server],
+                                "port": level_2_vmb_port + i * 2,
+                            },
+                            {
+                                "name": f"level_2_vmb_{level_2_vmb_server}_2",
+                                "ip": ip_mappings[level_2_vmb_server],
+                                "port": level_2_vmb_port + i * 2 + 1,
+                            },
+                        ]
+                    )
+                break
+
+        level1_config_file_io = StringIO()
+        json.dump(level1_config, level1_config_file_io)
+
+        result = conn.put(
+            level1_config_file_io,
+            f"{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level1_config_file}",
+        )
+        if result.failed:
+            update_status(
+                server,
+                "Failed to install config file '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level1_config_file}'",
+            )
+            return
+        else:
+            update_status(
+                server,
+                "Installed config '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level1_config_file}'",
+            )
+
+    server_num = int(server.split(".")[0][-2:])
+    if server_num >= 5:
+        # it's a level 2 vmb (1 is root, 2,3,4,5 are level 1 vmbs)
+        # node 5 runs both a level 1 and level 2 vmb
+        level2_config_file_1 = "vmb_level_2_config_1.json"
+        level2_config_file_2 = "vmb_level_2_config_2.json"
+        level2_config_1 = []
+        level2_config_2 = []
+        # We assume
+
+        server_num_0_idx = server_num - 5
+        # 2 vmbs per server, 10 nodes per vmb
+        port_start = 3300 + server_num_0_idx * 2 * 10
+        for i in range(10):
+            level2_config_1.append(
+                {
+                    "name": f"level_2_vmb_{server}_1_{i}",
+                    "ip": ip_mappings[server],
+                    "port": port_start + i,
+                }
+            )
+            level2_config_2.append(
+                {
+                    "name": f"level_2_vmb_{server}_2_{i}",
+                    "ip": ip_mappings[server],
+                    "port": port_start + i + 10,
+                }
+            )
+
+        update_status(server, "Installing config")
+        level2_config_file_1_io = StringIO()
+        json.dump(level2_config_1, level2_config_file_1_io)
+
+        level2_config_file_2_io = StringIO()
+        json.dump(level2_config_2, level2_config_file_2_io)
+
+        result = conn.put(
+            level2_config_file_1_io,
+            f"{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level2_config_file_1}",
+        )
+        if result.failed:
+            update_status(
+                server,
+                "Failed to install config file '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level2_config_file_1}'",
+            )
+            return
+        else:
+            update_status(
+                server,
+                "Installed config '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level2_config_file_1}'",
+            )
+
+        result = conn.put(
+            level2_config_file_2_io,
+            f"{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level2_config_file_2}",
+        )
+        if result.failed:
+            update_status(
+                server,
+                "Failed to install config file '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level2_config_file_2}'",
+            )
+            return
+        else:
+            update_status(
+                server,
+                "Installed config '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level2_config_file_2}'",
+            )
+
+
 # def start_server(conn, server):
 #     """Start the server on the remote server"""
 #     update_status(server, "Starting")
@@ -428,7 +646,13 @@ def ssh_connect_and_setup(
         setup_server(conn, server, username)
         stop_server(conn, server)
         # Update files
-        update_status(server, "Updating")
+        update_status(server, "Installing config")
+        install_config(conn, server)
+
+        # TODO: remove
+        conn.close()
+        return
+
         # Check if the server directory exists and delete it if it does
         # result = conn.run(f"test -d {REMOTE_SERVER_DIR}", warn=True)
         # if not result.failed:

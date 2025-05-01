@@ -35,6 +35,12 @@ import { execSync } from "node:child_process";
 import { DescriptorServer } from "@matter/node/behaviors";
 import { appendFile } from "node:fs";
 import { Command } from "commander";
+import fs from "node:fs";
+import { resolve } from "node:path";
+import { exit } from "node:process";
+import { fileURLToPath } from 'url';
+import path from 'path';
+
 // import { Attribute, Cluster, Command, Event } from "./Cluster.js";
 const logger = Logger.get("VirtualMatterBrokerNode");
 Logger.level = "info";
@@ -497,6 +503,28 @@ class VirtualMatterBrokerNode {
     }
 }
 
+type Config = {
+    name: string;
+    ip: string;
+    port: number;
+}[]
+
+function readConfigFile(configFile: string): Config {
+    // Read `cs525` config.json file from dist/esm folder
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const file = resolve(__dirname, "..", "..", configFile);
+    if (!fs.existsSync(file)) {
+        console.error(`Config file ${file} not found`);
+        exit(1);
+    }
+
+    const data = fs.readFileSync(file, "utf8");
+    const config = JSON.parse(data) as Config;
+    return config;
+}
+
+
 async function main() {
     const program = new Command();
     program.name("vmb");
@@ -504,15 +532,15 @@ async function main() {
         .requiredOption("--northPort <port>")
         .requiredOption("--northDiscriminator <discriminator>")
         .requiredOption("--northSetupPin <pin>")
-        .requiredOption("--southDeviceCount <count>")
-        // TODO: Update this to use an IP to port range AND a discriminator/setup pin for each IP/port range
-        .requiredOption("--southIp <ip>")
-        .requiredOption("--southStartPort <port>")
-        .requiredOption("--southStartDiscriminator <discriminator>")
-        .requiredOption("--southSetupPin <pin>")
+        .requiredOption("--southConfigFile <file>")
         .option("--storage-clear");
+
     program.parse(process.argv);
     const args = program.opts();
+    const configFile = args.southConfigFile;
+    const config = readConfigFile(configFile);
+    console.log({ config });
+
     // Create a new instance of the VirtualMatterBrokerNode
     const vmb = new VirtualMatterBrokerNode();
     // Start the VMB with a unique instance node ID
@@ -528,25 +556,11 @@ async function main() {
     }, 5000);
 
     // Pair each node with the VMB
-    for (let i = 0; i < args.southDeviceCount; i++) {
-        // const endpoint = new Endpoint(
-        //     TemperatureSensorDevice.with(BridgedDeviceBasicInformationServer),
-        //     {
-        //         id: `tempsensor-${i}`,
-        //         bridgedDeviceBasicInformation: {
-        //             nodeLabel: name, // Main end user name for the device
-        //             productName: name,
-        //             productLabel: name,
-        //             serialNumber: `node-matter-${uniqueId}-${i}`,
-        //             reachable: true,
-        //         },
-        //     },
-        // );
-        const nodeId = await vmb.pairNode(
-            args.southIp,
-            parseInt(args.southStartPort) + i,
-            parseInt(args.southStartDiscriminator) + i,
-            parseInt(args.southSetupPin)
+    for (const [index, { name, ip, port }] of config.entries()) {
+        console.log(`Pairing node ${index} with name ${name} at ${ip}:${port}`);
+        const nodeId = await vmb.pairNode(ip, port, 
+            parseInt(port), // discriminator
+            parseInt(`${port}${port}`) // setup pin
         );
         await vmb.connectNode(nodeId);
     }
