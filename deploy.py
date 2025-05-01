@@ -163,6 +163,18 @@ def stop_server(conn: Connection, server: str):
     result = conn.run("tmux kill-server", warn=True)
     if result.failed:
         update_status(server, "Failed to stop tmux")
+
+    result = conn.sudo(
+        f"rm -rf {REMOTE_SERVER_DIR}/matter.js/packages/cs525/*.log", warn=True
+    )
+    if result.failed:
+        update_status(server, "Failed to remove cs525 logs")
+
+    result = conn.sudo(
+        f"rm -rf {REMOTE_SERVER_DIR}/matter.js/packages/cs525-baseline/*.log", warn=True
+    )
+    if result.failed:
+        update_status(server, "Failed to remove cs525-baseline logs")
         # return
     update_status(server, "Stopped")
 
@@ -255,7 +267,7 @@ def start_root_controller(
         elif len(items) <= 16:
             update_status(server, f"{len(items)} / {16} endnodes started")
 
-        if len(items) == 16 + 4:
+        if len(items) >= 16 + 4:
             break
         sleep(1)
 
@@ -306,8 +318,8 @@ def start_level_1_vmb(
     # Use this like a semaphore: block until we have all the endnodes
     while True:
         items = message_queue.snapshot()
-        update_status(server, f"{len(items)} / {len(SERVERS) - 1} endnodes started")
-        if len(items) == 16:
+        update_status(server, f"{len(items)} / {16} endnodes started")
+        if len(items) >= 16:
             break
         sleep(1)
     # while msg_gotten < 16:
@@ -497,14 +509,14 @@ def install_config(conn: Connection, server: str):
         for i in range(10):
             level2_config_1.append(
                 {
-                    "name": f"level_2_vmb_{server}_1_{i}",
+                    "name": f"endpoint_{server}_1_{i}",
                     "ip": ip_mappings[server],
                     "port": port_start + i,
                 }
             )
             level2_config_2.append(
                 {
-                    "name": f"level_2_vmb_{server}_2_{i}",
+                    "name": f"endpoint_{server}_2_{i}",
                     "ip": ip_mappings[server],
                     "port": port_start + i + 10,
                 }
