@@ -356,39 +356,32 @@ def install_config(conn: Connection, server: str):
         for i, vmb_server in enumerate(LEVEL_1_VMB_SERVERS):
             root_config.append(
                 {
-                    "name": "level_1_vmb_{vmb_server}",
+                    "name": f"level_1_vmb_{vmb_server}",
                     "ip": ip_mappings[vmb_server],
                     "port": 3100 + i,
                 }
             )
 
         root_config_file_io = StringIO()
-        json.dump(root_config, root_config_file_io)
+        json.dump(root_config, root_config_file_io, indent=4)
 
         result = conn.put(
             root_config_file_io,
             f"{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{root_config_file}",
         )
-        if result.failed:
-            update_status(
-                server,
-                "Failed to install config file '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{root_config_file}'",
-            )
-            return
-        else:
-            update_status(
-                server,
-                "Installed config '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{root_config_file}'",
-            )
+        update_status(
+            server,
+            f"Installed config '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{root_config_file}'",
+        )
 
     if is_level_1_vmb:
         level_2_vmb_port = 3200 + LEVEL_1_VMB_SERVERS.index(server) * 8
 
         level1_config_file = "vmb_level_1_config.json"
         level1_config = []
-        for i, vmb_server in enumerate(vmb_vmb_mappings):
+        for vmb_server in vmb_vmb_mappings:
             if server in vmb_server:
-                for level_2_vmb_server in vmb_server[server]:
+                for i, level_2_vmb_server in enumerate(vmb_server[server]):
                     level1_config.extend(
                         [
                             {
@@ -406,23 +399,16 @@ def install_config(conn: Connection, server: str):
                 break
 
         level1_config_file_io = StringIO()
-        json.dump(level1_config, level1_config_file_io)
+        json.dump(level1_config, level1_config_file_io, indent=4)
 
         result = conn.put(
             level1_config_file_io,
             f"{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level1_config_file}",
         )
-        if result.failed:
-            update_status(
-                server,
-                "Failed to install config file '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level1_config_file}'",
-            )
-            return
-        else:
-            update_status(
-                server,
-                "Installed config '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level1_config_file}'",
-            )
+        update_status(
+            server,
+            f"Installed config '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level1_config_file}'",
+        )
 
     server_num = int(server.split(".")[0][-2:])
     if server_num >= 5:
@@ -455,42 +441,28 @@ def install_config(conn: Connection, server: str):
 
         update_status(server, "Installing config")
         level2_config_file_1_io = StringIO()
-        json.dump(level2_config_1, level2_config_file_1_io)
+        json.dump(level2_config_1, level2_config_file_1_io, indent=4)
 
         level2_config_file_2_io = StringIO()
-        json.dump(level2_config_2, level2_config_file_2_io)
+        json.dump(level2_config_2, level2_config_file_2_io, indent=4)
 
         result = conn.put(
             level2_config_file_1_io,
             f"{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level2_config_file_1}",
         )
-        if result.failed:
-            update_status(
-                server,
-                "Failed to install config file '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level2_config_file_1}'",
-            )
-            return
-        else:
-            update_status(
-                server,
-                "Installed config '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level2_config_file_1}'",
-            )
+        update_status(
+            server,
+            f"Installed config '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level2_config_file_1}'",
+        )
 
         result = conn.put(
             level2_config_file_2_io,
             f"{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level2_config_file_2}",
         )
-        if result.failed:
-            update_status(
-                server,
-                "Failed to install config file '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level2_config_file_2}'",
-            )
-            return
-        else:
-            update_status(
-                server,
-                "Installed config '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level2_config_file_2}'",
-            )
+        update_status(
+            server,
+            f"Installed config '{REMOTE_SERVER_DIR}/matter.js/packages/cs525/{level2_config_file_2}'",
+        )
 
 
 # def start_server(conn, server):
