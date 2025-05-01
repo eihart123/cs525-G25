@@ -929,9 +929,21 @@ def display_status(stdscr):
             for server in SERVERS:
                 update_status(server, "Collecting logs")
                 is_root = server == CONTROLLER_SERVER
+                is_level_1_vmb = server in LEVEL_1_VMB_SERVERS
+                server_num = int(server.split(".")[0][-2:])
+                is_level_2_vmb = server_num >= 5
                 thread = threading.Thread(
                     target=ssh_connect_and_get_logs,
-                    args=(server, username, password, with_vmb, is_root, message_queue),
+                    args=(
+                        server,
+                        username,
+                        password,
+                        with_vmb,
+                        is_root,
+                        is_level_1_vmb,
+                        is_level_2_vmb,
+                        message_queue,
+                    ),
                 )
                 thread.start()
                 threads.append(thread)
