@@ -619,11 +619,11 @@ def ssh_connect_and_setup(
         stop_server(conn, server)
         # Update files
         update_status(server, "Installing config")
-        install_config(conn, server)
+        # install_config(conn, server)
 
         # TODO: remove
-        conn.close()
-        return
+        # conn.close()
+        # return
 
         # Check if the server directory exists and delete it if it does
         # result = conn.run(f"test -d {REMOTE_SERVER_DIR}", warn=True)
