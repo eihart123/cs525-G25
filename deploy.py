@@ -539,8 +539,15 @@ def install_config(conn: Connection, server: str):
             )
 
         update_status(server, "Installing config")
+        node_above = None
+        for _, item in enumerate(vmb_vmb_mappings):
+            l1_server = list(item.keys())[0]
+            for i, level_2_vmb_server in enumerate(item[l1_server]):
+                if level_2_vmb_server == server:
+                    node_above = l1_server
+                    break
 
-        my_own_port = 3200 + LEVEL_1_VMB_SERVERS.index(server) * 8
+        my_own_port = 3200 + LEVEL_1_VMB_SERVERS.index(node_above) * 8
 
         level2_config_file_1_io = StringIO()
         json.dump(
