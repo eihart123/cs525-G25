@@ -496,7 +496,12 @@ class VirtualMatterBrokerNode {
             
         }
         logger.info({ dataFilteredByInterval }, "Data grouped by attribute");
-
+        dataFilteredByInterval['MeasuredValue'] = dataFilteredByInterval['MeasuredValue'] ?? [
+            {
+                sum: 0,
+                endpointId: 'unused',
+            }
+        ]
         // Calculate average, min, max
         for (const [attribute, value] of Object.entries(dataFilteredByInterval)) {
             const sums = value.map((endpointData) => endpointData.sum)
