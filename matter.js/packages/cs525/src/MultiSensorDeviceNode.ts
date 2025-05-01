@@ -89,11 +89,14 @@ async function main() {
         //     port,
         //     uniqueId,
         // } = await getConfiguration(deviceID);
-
+        
         /**
          * Create a Matter ServerNode, which contains the Root Endpoint and all relevant data and configuration
-         */
+        */
         const uniqueId = `${port}`;
+        const passcode = parseInt(`${port}${port}`)
+        const discriminator = port;
+        console.log(`Creating device "${name}" on ${ip}:${port} with passcode ${passcode} and discriminator ${discriminator}`);
         const productName = `${ip}:${port}`;
         const vendorName = "CS 525 G25";
         const interval = 10; // update every 10 seconds
@@ -104,15 +107,15 @@ async function main() {
             // Optional when operating only one device on a host, Default port is 5540
             network: {
                 // port,
-                ip: ip,
-                port: port,
+                ip,
+                port,
             },
 
             // Provide Commissioning relevant settings
             // Optional for development/testing purposes
             commissioning: {
-                passcode: parseInt(`${port}${port}`),
-                discriminator: port,
+                passcode,
+                discriminator,
             },
 
             // Provide Node announcement settings
