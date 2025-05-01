@@ -164,6 +164,18 @@ def stop_server(conn: Connection, server: str):
     if result.failed:
         update_status(server, "Failed to stop tmux")
 
+    # result = conn.sudo(
+    #     f"rm -rf {REMOTE_SERVER_DIR}/matter.js/packages/cs525/*.pcap", warn=True
+    # )
+    # if result.failed:
+    #     update_status(server, "Failed to remove cs525 logs")
+
+    # result = conn.sudo(
+    #     f"rm -rf {REMOTE_SERVER_DIR}/matter.js/packages/cs525-baseline/*.pcap",
+    #     warn=True,
+    # )
+    # if result.failed:
+    #     update_status(server, "Failed to remove cs525 logs")
     # uncomment if stuff gets funky
     # result = conn.sudo(
     #     f"rm -rf {REMOTE_SERVER_DIR}/matter.js/packages/cs525/*.log", warn=True
