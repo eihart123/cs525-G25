@@ -301,9 +301,25 @@ class VirtualMatterBrokerNode {
                 // logger.info(await aggregatedStats.subscribeAverageMeasuredValue60Attribute(value => console.log(`${name}.average60 = ${value}`), 5, 120));
                 const aggregatedChildEndpoints = child.getChildEndpoints();
                 logger.info(`Child ${child.number} has ${aggregatedChildEndpoints.length} aggregated child endpoints`);
-                aggregatedChildEndpoints.forEach((nestedChild) => {
+                aggregatedChildEndpoints.forEach(async (nestedChild) => {
                     logger.info(`Nested child endpoint "${child.number}/${nestedChild.number}" found with type: ${nestedChild.deviceType}`);
                     // TODO: Create proxy endpoint for the nested child!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    const proxy_endpoint = new Endpoint(
+                        TemperatureSensorDevice.with(BridgedDeviceBasicInformationServer),
+                        {
+                            id: `ple-${nodeId}-${nestedChild.number}`,
+                            bridgedDeviceBasicInformation: {
+                                nodeLabel: detailsForNode.advertisedName, // Main end user name for the device
+                                productName: detailsForNode.advertisedName,
+                                productLabel: detailsForNode.advertisedName,
+                                serialNumber: `${nodeId}-${nestedChild.number}`,
+                                reachable: true,
+                            },
+                        }
+                    );
+                    // Add this proxy endpoint to the north node
+                    // this.#proxiedEndpoints.set({ nodeId, endpointId: nestedChild.number as number }, proxy_endpoint);
+                    await this.#aggregator.add(proxy_endpoint);
                 });
             }
             const bridgedDeviceBasicInformation = child.getClusterClient(BridgedDeviceBasicInformationCluster);

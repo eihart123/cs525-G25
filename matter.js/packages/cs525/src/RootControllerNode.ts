@@ -72,27 +72,6 @@ class RootControllerNode {
             : (environment.vars.string("fabriclabel") ?? "matter.js Controller");
         await controllerStorage.set("fabriclabel", adminFabricLabel);
 
-        const pairingCode = environment.vars.string("pairingcode");
-        let longDiscriminator, setupPin, shortDiscriminator;
-        if (pairingCode !== undefined) {
-            const pairingCodeCodec = ManualPairingCodeCodec.decode(pairingCode);
-            shortDiscriminator = pairingCodeCodec.shortDiscriminator;
-            longDiscriminator = undefined;
-            setupPin = pairingCodeCodec.passcode;
-            logger.debug(`Data extracted from pairing code: ${Logger.toJSON(pairingCodeCodec)}`);
-        } else {
-            longDiscriminator =
-                environment.vars.number("longDiscriminator") ??
-                (await controllerStorage.get("longDiscriminator", 3840));
-            if (longDiscriminator > 4095) throw new Error("Discriminator value must be less than 4096");
-            setupPin = environment.vars.number("pin") ?? (await controllerStorage.get("pin", 20250525));
-        }
-        if ((shortDiscriminator === undefined && longDiscriminator === undefined) || setupPin === undefined) {
-            throw new Error(
-                "Please specify the longDiscriminator of the device to commission with -longDiscriminator or provide a valid passcode with -passcode",
-            );
-        }
-
         /** Create Matter Controller Node and bind it to the Environment. */
         const commissioningController = new CommissioningController({
             environment: {
@@ -108,7 +87,7 @@ class RootControllerNode {
         await commissioningController.start();
 
         const promises = config.south.map(({ name, ip, port }) => {
-            return this.commissionAndPairNode({ name, ip, port, longDiscriminator, setupPin })
+            return this.commissionAndPairNode({ name, ip, port, longDiscriminator: port, setupPin: parseInt(`${port}${port}`) })
                 .catch(error => {
                     logger.error(`Error commissioning node ${name}: ${error}`);
                 });
