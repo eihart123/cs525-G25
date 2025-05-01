@@ -539,20 +539,13 @@ def install_config(conn: Connection, server: str):
             )
 
         update_status(server, "Installing config")
-        my_node = None
-        for _, item in enumerate(vmb_vmb_mappings):
-            l1_server = list(item.keys())[0]
-            for i, level_2_vmb_server in enumerate(item[l1_server]):
-                if level_2_vmb_server == server:
-                    my_node = l1_server
-                    break
 
-        my_own_port = 3200 + LEVEL_1_VMB_SERVERS.index(my_node) * 8
+        my_own_port = 3200 + LEVEL_1_VMB_SERVERS.index(server) * 8
 
         level2_config_file_1_io = StringIO()
         json.dump(
             {
-                "north": {"ip": ip_mappings[my_node], "port": my_own_port},
+                "north": {"ip": ip_mappings[server], "port": my_own_port},
                 "south": level2_config_1,
             },
             level2_config_file_1_io,
@@ -562,7 +555,7 @@ def install_config(conn: Connection, server: str):
         level2_config_file_2_io = StringIO()
         json.dump(
             {
-                "north": {"ip": ip_mappings[my_node], "port": my_own_port},
+                "north": {"ip": ip_mappings[server], "port": my_own_port},
                 "south": level2_config_2,
             },
             level2_config_file_2_io,
