@@ -222,20 +222,20 @@ async function main() {
 
     const node = new RootControllerNode()
     node.start(config).catch(error => logger.error(error));
-    setInterval(() => {
-        const totalIn = Object.entries(node.controller?.controllerInstance?.exchangeManager.transmissionMetadata || {}).reduce((acc, [key, value]) => {
-            return acc + value;
-        }, 0);
-        const totalOut = Object.entries(node.controller?.controllerInstance?.exchangeManager.transmissionMetadataOut || {}).reduce((acc, [key, value]) => {
-            return acc + value;
-        }, 0);
+    // setInterval(() => {
+    //     const totalIn = Object.entries(node.controller?.controllerInstance?.exchangeManager.transmissionMetadata || {}).reduce((acc, [key, value]) => {
+    //         return acc + value;
+    //     }, 0);
+    //     const totalOut = Object.entries(node.controller?.controllerInstance?.exchangeManager.transmissionMetadataOut || {}).reduce((acc, [key, value]) => {
+    //         return acc + value;
+    //     }, 0);
         
-        const data = `${Date.now()}, in ${totalIn}, out ${totalOut}\n`;
-        appendFile('results_pubsub-root.txt', data, (err) => {
-            if (err) throw err;
-            logger.info(data);
-        });
-    }, 1000);
+    //     const data = `${Date.now()}, in ${totalIn}, out ${totalOut}\n`;
+    //     appendFile('results_pubsub-root.txt', data, (err) => {
+    //         if (err) throw err;
+    //         logger.info(data);
+    //     });
+    // }, 1000);
 }
 
 await main();
