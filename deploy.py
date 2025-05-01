@@ -176,6 +176,7 @@ def setup_server(conn: Connection, server: str, username: str):
     update_status(server, "Initializing")
 
     # Install tmux
+    conn.run("git config --global --add safe.directory /opt/matter/cs525-G25")
     result = conn.sudo("dnf install -y tmux", warn=True)
     if result.failed:
         update_status(server, "Failed to install tmux")
@@ -221,13 +222,13 @@ def setup_server(conn: Connection, server: str, username: str):
 def build_server(conn: Connection, server: str):
     """Build the server on the remote server"""
     update_status(server, "Installing dependencies...")
-    result = conn.run(f"cd {REMOTE_SERVER_DIR}/matter.js && npm ci", warn=True)
+    result = conn.sudo(f"/bin/sh -c 'cd {REMOTE_SERVER_DIR}/matter.js && npm ci'", warn=True)
     if result.failed:
         update_status(server, "Failed to install dependencies")
         return
 
     update_status(server, "Building...")
-    result = conn.run(f"cd {REMOTE_SERVER_DIR}/matter.js && npm run build", warn=True)
+    result = conn.sudo(f"/bin/sh -c 'cd {REMOTE_SERVER_DIR}/matter.js && npm run build'", warn=True)
     if result.failed:
         update_status(server, "Failed to build")
         return
@@ -508,7 +509,7 @@ def ssh_connect_and_restart(
         conn = Connection(
             host=server,
             user=username,
-            connect_kwargs={"password": password},
+            connect_kwargs={"password": password, "allow_agent": False},
             config=make_config(server),
         )
 
@@ -550,7 +551,7 @@ def ssh_connect_and_get_logs(
         conn = Connection(
             host=server,
             user=username,
-            connect_kwargs={"password": password},
+            connect_kwargs={"password": password, "allow_agent": False},
             config=make_config(server),
         )
 
@@ -611,7 +612,7 @@ def ssh_connect_and_setup(
         conn = Connection(
             host=server,
             user=username,
-            connect_kwargs={"password": password},
+            connect_kwargs={"password": password, "allow_agent": False},
             config=make_config(server),
         )
 
@@ -701,7 +702,7 @@ def ssh_connect_and_stop(
         conn = Connection(
             host=server,
             user=username,
-            connect_kwargs={"password": password},
+            connect_kwargs={"password": password, "allow_agent": False},
             config=make_config(server),
         )
         # Stop server process
