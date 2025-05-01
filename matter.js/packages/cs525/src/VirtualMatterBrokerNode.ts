@@ -130,9 +130,10 @@ class VirtualMatterBrokerNode {
         //     ? await this.#controllerStorage.get<string>("uniqueid")
         //     : (environment.vars.string("uniqueid") ?? Time.nowMs().toString());
         // await this.#controllerStorage.set("uniqueid", uniqueId);
-        const adminFabricLabel = (await this.#controllerStorage.has("fabriclabel"))
-            ? await this.#controllerStorage.get<string>("fabriclabel")
-            : (environment.vars.string("fabriclabel") ?? `vmb-${this.instanceNodeId}`);
+        const adminFabricLabel = `vmb-${northPort}`;
+        // (await this.#controllerStorage.has("fabriclabel"))
+        //     ? await this.#controllerStorage.get<string>("fabriclabel")
+        //     : (environment.vars.string("fabriclabel") ?? );
 
         // Create CommissioningController
         const commissionerOptions: CommissioningControllerOptions = {
