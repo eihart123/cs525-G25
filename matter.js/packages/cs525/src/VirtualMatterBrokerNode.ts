@@ -122,13 +122,14 @@ class VirtualMatterBrokerNode {
     to the root controller.
      */
 
-    async #initController() {
+    async #initController(northPort: number) {
         // Configure commissioning options
         this.#controllerStorage = this.#vmbStorageManager.createContext("south-controller");
-        const uniqueId = (await this.#controllerStorage.has("uniqueid"))
-            ? await this.#controllerStorage.get<string>("uniqueid")
-            : (environment.vars.string("uniqueid") ?? Time.nowMs().toString());
-        await this.#controllerStorage.set("uniqueid", uniqueId);
+        const uniqueId = `${northPort}`;
+        // (await this.#controllerStorage.has("uniqueid"))
+        //     ? await this.#controllerStorage.get<string>("uniqueid")
+        //     : (environment.vars.string("uniqueid") ?? Time.nowMs().toString());
+        // await this.#controllerStorage.set("uniqueid", uniqueId);
         const adminFabricLabel = (await this.#controllerStorage.has("fabriclabel"))
             ? await this.#controllerStorage.get<string>("fabriclabel")
             : (environment.vars.string("fabriclabel") ?? `vmb-${this.instanceNodeId}`);
@@ -161,7 +162,7 @@ class VirtualMatterBrokerNode {
         const productName = "Factory Broker 9000";
         const productId = await this.#aggregatorStorage.get("productid", 0x8000);
 
-        const port = environment.vars.number("port") ?? northPort;
+        const port = northPort;
 
         const uniqueId = await this.#aggregatorStorage.get("uniqueid", Time.nowMs().toString());
 
@@ -227,7 +228,7 @@ class VirtualMatterBrokerNode {
         this.#aggregatorData = {};
 
         // South side initialization
-        await this.#initController();
+        await this.#initController(northPort);
         // North side initialization
         await this.#initAggregator(northPort, northDiscriminator, northSetupPin);
 
