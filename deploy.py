@@ -64,27 +64,28 @@ SERVERS = [
     "sp25-cs525-2520.cs.illinois.edu",
 ]
 
+
 ip_mappings = {
-    "sp25-cs525-2501.cs.illinois.edu": "fe80::250:56ff:fe8c:8777",
-    "sp25-cs525-2502.cs.illinois.edu": "fe80::250:56ff:fe8c:57da",
-    "sp25-cs525-2503.cs.illinois.edu": "fe80::250:56ff:fe8c:dc43",
-    "sp25-cs525-2504.cs.illinois.edu": "fe80::250:56ff:fe8c:34c3",
-    "sp25-cs525-2505.cs.illinois.edu": "fe80::250:56ff:fe8c:50b4",
-    "sp25-cs525-2506.cs.illinois.edu": "fe80::250:56ff:fe8c:bfd9",
-    "sp25-cs525-2507.cs.illinois.edu": "fe80::250:56ff:fe8c:69e1",
-    "sp25-cs525-2508.cs.illinois.edu": "fe80::250:56ff:fe8c:cc0b",
-    "sp25-cs525-2509.cs.illinois.edu": "fe80::250:56ff:fe8c:9744",
-    "sp25-cs525-2510.cs.illinois.edu": "fe80::250:56ff:fe8c:d55",
-    "sp25-cs525-2511.cs.illinois.edu": "fe80::250:56ff:fe8c:1ec1",
-    "sp25-cs525-2512.cs.illinois.edu": "fe80::250:56ff:fe8c:1814",
-    "sp25-cs525-2513.cs.illinois.edu": "fe80::250:56ff:fe8c:643e",
-    "sp25-cs525-2514.cs.illinois.edu": "fe80::250:56ff:fe8c:b863",
-    "sp25-cs525-2515.cs.illinois.edu": "fe80::250:56ff:fe8c:7b42",
-    "sp25-cs525-2516.cs.illinois.edu": "fe80::250:56ff:fe8c:6c49",
-    "sp25-cs525-2517.cs.illinois.edu": "fe80::250:56ff:fe8c:4ebd",
-    "sp25-cs525-2518.cs.illinois.edu": "fe80::250:56ff:fe8c:c3b8",
-    "sp25-cs525-2519.cs.illinois.edu": "fe80::250:56ff:fe8c:7915",
-    "sp25-cs525-2520.cs.illinois.edu": "fe80::250:56ff:fe8c:8ca6",
+    "sp25-cs525-2501.cs.illinois.edu": "172.22.155.114",
+    "sp25-cs525-2502.cs.illinois.edu": "172.22.151.94",
+    "sp25-cs525-2503.cs.illinois.edu": "172.22.153.135",
+    "sp25-cs525-2504.cs.illinois.edu": "172.22.155.115",
+    "sp25-cs525-2505.cs.illinois.edu": "172.22.151.95",
+    "sp25-cs525-2506.cs.illinois.edu": "172.22.153.136",
+    "sp25-cs525-2507.cs.illinois.edu": "172.22.155.116",
+    "sp25-cs525-2508.cs.illinois.edu": "172.22.151.96",
+    "sp25-cs525-2509.cs.illinois.edu": "172.22.153.137",
+    "sp25-cs525-2510.cs.illinois.edu": "172.22.155.117",
+    "sp25-cs525-2511.cs.illinois.edu": "172.22.151.97",
+    "sp25-cs525-2512.cs.illinois.edu": "172.22.153.138",
+    "sp25-cs525-2513.cs.illinois.edu": "172.22.155.118",
+    "sp25-cs525-2514.cs.illinois.edu": "172.22.151.98",
+    "sp25-cs525-2515.cs.illinois.edu": "172.22.153.139",
+    "sp25-cs525-2516.cs.illinois.edu": "172.22.155.119",
+    "sp25-cs525-2517.cs.illinois.edu": "172.22.151.99",
+    "sp25-cs525-2518.cs.illinois.edu": "172.22.153.140",
+    "sp25-cs525-2519.cs.illinois.edu": "172.22.155.120",
+    "sp25-cs525-2520.cs.illinois.edu": "172.22.151.100",
 }
 
 # Level 1 to level 2 mappings
@@ -768,7 +769,6 @@ def ssh_connect_and_setup(
         # update_status(server, "Installing config")
         # install_config(conn, server)
 
-        # TODO: remove
         # conn.close()
         # return
 
