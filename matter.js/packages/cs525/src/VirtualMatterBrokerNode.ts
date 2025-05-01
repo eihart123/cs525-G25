@@ -15,6 +15,7 @@
 import { CommissioningController, CommissioningControllerOptions, NodeCommissioningOptions } from "@project-chip/matter.js";
 
 import { Endpoint, EndpointServer, MutableEndpoint, ServerNode } from "@matter/node";
+import { Endpoint as ExternalEndpoint } from "@project-chip/matter.js/device";
 // BridgedDeviceBasicInformationServer, OnOffLightDevice, OnOffPlugInUnitDevice, 
 // "#endpoints/*": "./src/endpoints/*.js",
 import { AggregatorEndpoint } from "@matter/node/endpoints/aggregator";
@@ -108,7 +109,9 @@ class VirtualMatterBrokerNode {
     // Attributes is the final computed stuff
     #aggregatorAttributes: Record<string, number>;
     // Proxied nodes
-    #proxiedEndpoints: Map<NodeEndpointKey, MutableEndpoint>;
+    #proxiedEndpoints: Map<NodeEndpointKey, ExternalEndpoint>;
+    // Southbound aggregator endpoints
+    #southboundEndpoints: Map<NodeEndpointKey, ExternalEndpoint>;
     /**
     
     Create an internal controller C2. The internal controller should directly pair with the end device.
@@ -228,7 +231,8 @@ class VirtualMatterBrokerNode {
         // North side initialization
         await this.#initAggregator(northPort, northDiscriminator, northSetupPin);
 
-        this.#proxiedEndpoints = new Map<NodeEndpointKey, MutableEndpoint>();
+        this.#proxiedEndpoints = new Map<NodeEndpointKey, ExternalEndpoint>();
+        this.#southboundEndpoints = new Map<NodeEndpointKey, ExternalEndpoint>();
 
         // Setup a timer to recalculate aggregates
         for (const length of AggregateIntervals) {
@@ -301,6 +305,7 @@ class VirtualMatterBrokerNode {
                 // logger.info(await aggregatedStats.subscribeAverageMeasuredValue60Attribute(value => console.log(`${name}.average60 = ${value}`), 5, 120));
                 const aggregatedChildEndpoints = child.getChildEndpoints();
                 logger.info(`Child ${child.number} has ${aggregatedChildEndpoints.length} aggregated child endpoints`);
+                this.#southboundEndpoints.set({ nodeId, endpointId: child.number as number }, child);
                 aggregatedChildEndpoints.forEach(async (nestedChild) => {
                     logger.info(`Nested child endpoint "${child.number}/${nestedChild.number}" found with type: ${nestedChild.deviceType}`);
                     // TODO: Create proxy endpoint for the nested child!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -319,6 +324,7 @@ class VirtualMatterBrokerNode {
                     );
                     // Add this proxy endpoint to the north node
                     // this.#proxiedEndpoints.set({ nodeId, endpointId: nestedChild.number as number }, proxy_endpoint);
+                    this.#southboundEndpoints.set({ nodeId, endpointId: nestedChild.number as number }, nestedChild);
                     await this.#aggregator.add(proxy_endpoint);
                 });
             }
@@ -359,7 +365,30 @@ class VirtualMatterBrokerNode {
             node.connect({ autoSubscribe: false });
         }
 
-        // TODO: Subscribe to aggregated stats ONLY, we turned off autoSubscribe above
+        // Find matching southbound endpoints with the nodeId
+        const southboundEndpoints = [...this.#southboundEndpoints.entries()].filter(([key]) => key.nodeId === nodeId);
+        if (southboundEndpoints.length === 0) {
+            logger.warn(`No southbound endpoints found for node ${nodeId}`);
+            return;
+        }
+        logger.debug(`Found ${southboundEndpoints.length} southbound endpoints for node ${nodeId}`);
+        // Subscribe to the attributes of the southbound endpoints IF it is a temperature sensor or aggregated stats
+        for (const [key, endpoint] of southboundEndpoints) {
+            logger.debug(`Subscribing to attributes of endpoint ${key.endpointId}`);
+            const aggregatedStats = endpoint.getClusterClient(AggregatedStatsCluster);
+            // Subscribe to the average measured value attributes
+            if (aggregatedStats) {
+                logger.info(await aggregatedStats.subscribeAverageMeasuredValue10Attribute(value => logger.info(`${nodeId}.${key.endpointId}.average10 = ${value}`), 5, 30));
+                logger.info(await aggregatedStats.subscribeAverageMeasuredValue60Attribute(value => logger.info(`${nodeId}.${key.endpointId}.average60 = ${value}`), 5, 120));
+            }
+            const temperatureSensor = endpoint.getClusterClient(TemperatureMeasurementCluster);
+            if (temperatureSensor) {
+                logger.info(`Subscribing to attributes of endpoint ${key.endpointId}`);
+                // Subscribe to the measured value attribute
+                await temperatureSensor.subscribeMeasuredValueAttribute(value => logger.info(`${nodeId}.${key.endpointId}.measuredValue = ${value}`), 5, 30);
+            }
+        }
+
         node.events.attributeChanged.on(async ({ path: { clusterId, endpointId, attributeName }, value }) => {
             logger.debug(
                 `attributeChangedCallback ${nodeId}: Attribute ${endpointId}/${clusterId}/${attributeName} changed to ${Logger.toJSON(

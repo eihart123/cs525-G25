@@ -11,6 +11,7 @@ import { ManualPairingCodeCodec, NodeId } from "@matter/main/types";
 import { CommissioningController, NodeCommissioningOptions } from "@project-chip/matter.js";
 import { NodeStates } from "@project-chip/matter.js/device";
 import { AggregatedStatsCluster } from "@matter/types/clusters/aggregated-stats";
+import { TemperatureMeasurementCluster } from "@matter/main/clusters";
 import { appendFile } from "node:fs";
 import { execSync } from "node:child_process";
 import { DescriptorServer } from "@matter/node/behaviors";
@@ -190,13 +191,18 @@ class RootControllerNode {
         for (const child of endpoints) {
             logger.debug(`Child endpoint "${child.name}" found with type: ${child.deviceType}`);
             const aggregatedStats = child.getClusterClient(AggregatedStatsCluster);
-            if (!aggregatedStats) {
-                logger.info(`Child ${child.number} does not support Aggregated Stats`);
-                continue;
+            if (aggregatedStats) {
+                logger.info(`Child ${child.number} supports Aggregated Stats`);
+                // logger.info(await aggregatedStats?.attributes.attributeList.get())
+                logger.info(await aggregatedStats.subscribeAverageMeasuredValue10Attribute(value => logger.info(`${name}.average10 = ${value}`), 5, 30));
+                logger.info(await aggregatedStats.subscribeAverageMeasuredValue60Attribute(value => logger.info(`${name}.average60 = ${value}`), 5, 120));
             }
-            // logger.info(await aggregatedStats?.attributes.attributeList.get())
-            logger.info(await aggregatedStats.subscribeAverageMeasuredValue10Attribute(value => console.log(`${name}.average10 = ${value}`), 5, 30));
-            logger.info(await aggregatedStats.subscribeAverageMeasuredValue60Attribute(value => console.log(`${name}.average60 = ${value}`), 5, 120));
+            const temperatureMeasurement = child.getClusterClient(TemperatureMeasurementCluster);
+            if (temperatureMeasurement) {
+                logger.info(`Child ${child.number} supports Temperature Measurement`);
+                // logger.info(await temperatureMeasurement?.attributes.attributeList.get())
+                logger.info(await temperatureMeasurement.subscribeMeasuredValueAttribute(value => logger.info(`${name}.temperature = ${value}`), 5, 30));
+            }
         }
     }
 }
