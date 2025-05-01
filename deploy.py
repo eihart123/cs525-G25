@@ -302,7 +302,7 @@ def start_root_controller(
     if result.failed:
         update_status(server, "Failed to start tcpdump")
         return
-    cmd2 = f"tmux new-session -d -s server 'node {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/dist/esm/{serverFile} -- --storage-clear  2>&1 | tee {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/root.log'"
+    cmd2 = f"tmux new-session -d -s server 'bash {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/startup_root.sh'"
     result = conn.sudo(
         cmd2,
         warn=True,
