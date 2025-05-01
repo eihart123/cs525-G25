@@ -222,13 +222,17 @@ def setup_server(conn: Connection, server: str, username: str):
 def build_server(conn: Connection, server: str):
     """Build the server on the remote server"""
     update_status(server, "Installing dependencies...")
-    result = conn.sudo(f"/bin/sh -c 'cd {REMOTE_SERVER_DIR}/matter.js && npm ci'", warn=True)
+    result = conn.sudo(
+        f"/bin/sh -c 'cd {REMOTE_SERVER_DIR}/matter.js && npm ci'", warn=True
+    )
     if result.failed:
         update_status(server, "Failed to install dependencies")
         return
 
     update_status(server, "Building...")
-    result = conn.sudo(f"/bin/sh -c 'cd {REMOTE_SERVER_DIR}/matter.js && npm run build'", warn=True)
+    result = conn.sudo(
+        f"/bin/sh -c 'cd {REMOTE_SERVER_DIR}/matter.js && npm run build'", warn=True
+    )
     if result.failed:
         update_status(server, "Failed to build")
         return
@@ -607,7 +611,7 @@ def ssh_connect_and_restart(
         setup_server(conn, server, username)
         stop_server(conn, server)
         # start_root_controller(conn, server, with_vmb=with_vmb)
-        if with_vmb:
+        if not with_vmb:
             # install_config(conn, server)
             if is_root:
                 start_root_controller(
@@ -782,7 +786,7 @@ def ssh_connect_and_setup(
                 return
         build_server(conn, server)
         # start_server(conn, server)
-        if with_vmb:
+        if not with_vmb:
             # install_config(conn, server)
             if is_root:
                 start_root_controller(
