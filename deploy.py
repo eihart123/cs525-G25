@@ -164,18 +164,19 @@ def stop_server(conn: Connection, server: str):
     if result.failed:
         update_status(server, "Failed to stop tmux")
 
-    result = conn.sudo(
-        f"rm -rf {REMOTE_SERVER_DIR}/matter.js/packages/cs525/*.log", warn=True
-    )
-    if result.failed:
-        update_status(server, "Failed to remove cs525 logs")
+    # uncomment if stuff gets funky
+    # result = conn.sudo(
+    #     f"rm -rf {REMOTE_SERVER_DIR}/matter.js/packages/cs525/*.log", warn=True
+    # )
+    # if result.failed:
+    #     update_status(server, "Failed to remove cs525 logs")
 
-    result = conn.sudo(
-        f"rm -rf {REMOTE_SERVER_DIR}/matter.js/packages/cs525-baseline/*.log", warn=True
-    )
-    if result.failed:
-        update_status(server, "Failed to remove cs525-baseline logs")
-        # return
+    # result = conn.sudo(
+    #     f"rm -rf {REMOTE_SERVER_DIR}/matter.js/packages/cs525-baseline/*.log", warn=True
+    # )
+    # if result.failed:
+    #     update_status(server, "Failed to remove cs525-baseline logs")
+    # return
     update_status(server, "Stopped")
 
 
@@ -546,7 +547,7 @@ def install_config(conn: Connection, server: str):
         level2_config_file_2_io = StringIO()
         json.dump(
             {
-                "north": {"ip": ip_mappings[my_node], "port": my_node},
+                "north": {"ip": ip_mappings[my_node], "port": my_own_port},
                 "south": level2_config_2,
             },
             level2_config_file_2_io,
@@ -983,6 +984,7 @@ def main():
     global password
     global username
     global threads
+    global with_vmb
     parser = argparse.ArgumentParser(
         prog="CS 525 Deployment Script",
         description="Deploy the Matter testbed to multiple servers",
