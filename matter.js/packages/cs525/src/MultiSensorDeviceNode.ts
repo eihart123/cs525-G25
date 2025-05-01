@@ -17,19 +17,54 @@ import { logEndpoint } from "@matter/main/protocol";
 import { DeviceTypeId, VendorId } from "@matter/main/types";
 import { execSync } from "node:child_process";
 import { LogLevel, Logger, singleton } from "@matter/main";
-import { exit } from "node:process";
 import { Command } from "commander";
+import { DescriptorServer } from "@matter/node/behaviors";
+import { appendFile } from "node:fs";
+import fs from "node:fs";
+import { resolve } from "node:path";
+import { exit } from "node:process";
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+type Config = {
+    north: {
+        port: number;
+    }
+    south: {
+        name: string;
+        ip: string;
+        port: number;
+    }[]
+}
+
+function readConfigFile(configFile: string): Config {
+    // Read `cs525` config.json file from dist/esm folder
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const file = resolve(__dirname, "..", "..", configFile);
+    if (!fs.existsSync(file)) {
+        console.error(`Config file ${file} not found`);
+        exit(1);
+    }
+
+    const data = fs.readFileSync(file, "utf8");
+    const config = JSON.parse(data) as Config;
+    return config;
+}
 
 async function main() {
+    // It can just read the vmb level 2 for the values it needs to be config.json
     const program = new Command();
     program.name("multi-sensor-device-node");
     program
-        .requiredOption("--deviceCount <count")
-        .requiredOption("--startPort <port>")
-        .requiredOption("--startDiscriminator <discriminator>")
-        .requiredOption("--setupPin <pin>");
+        .requiredOption("--configFile <file>")
+        .option("--storage-clear");
+
     program.parse(process.argv);
     const args = program.opts();
+    const configFile = args.configFile;
+    const config = readConfigFile(configFile);
+    const i_am_iron_man = config.south;
 
     /** Initialize configuration values */
     console.log("Initializing configuration...");
@@ -41,7 +76,7 @@ async function main() {
 
 
     // Create a new server node and endpoint for each device
-    for (let i = 0; i < args.deviceCount; i++) {
+    for (const [index, { name, ip, port }] of i_am_iron_man.entries()) {
         // const {
         //     interval,
         //     deviceName,
@@ -58,8 +93,8 @@ async function main() {
         /**
          * Create a Matter ServerNode, which contains the Root Endpoint and all relevant data and configuration
          */
-        const uniqueId = Time.nowMs().toString();
-        const productName = "A Matter Device";
+        const uniqueId = Time.nowMs().toString() + "-" + name + "-" + port;
+        const productName = `${name}:${port} #${index}`;
         const vendorName = "CS 525 G25";
         const interval = 10; // update every 10 seconds
         const server = await ServerNode.create({
@@ -69,14 +104,15 @@ async function main() {
             // Optional when operating only one device on a host, Default port is 5540
             network: {
                 // port,
-                port: parseInt(args.startPort) + i,
+                ip: ip,
+                port: port,
             },
 
             // Provide Commissioning relevant settings
             // Optional for development/testing purposes
             commissioning: {
-                passcode: parseInt(args.setupPin),
-                discriminator: parseInt(args.startDiscriminator) + i,
+                passcode: parseInt(`${port}${port}`),
+                discriminator: port,
             },
 
             // Provide Node announcement settings

@@ -12,6 +12,14 @@ import { CommissioningController, NodeCommissioningOptions } from "@project-chip
 import { NodeStates } from "@project-chip/matter.js/device";
 import { AggregatedStatsCluster } from "@matter/types/clusters/aggregated-stats";
 import { appendFile } from "node:fs";
+import { execSync } from "node:child_process";
+import { DescriptorServer } from "@matter/node/behaviors";
+import { Command } from "commander";
+import fs from "node:fs";
+import { resolve } from "node:path";
+import { exit } from "node:process";
+import { fileURLToPath } from 'url';
+import path from 'path';
 
 Logger.level = "info";
 const logger = Logger.get("RootController");
@@ -25,41 +33,36 @@ logger.info(
     'Use the parameter "--storage-path=NAME-OR-PATH" to specify a different storage location in this directory, use --storage-clear to start with an empty storage.',
 );
 
-const vmb_addresses = [
-    {name: "vmb2", ip: "fe80::250:56ff:fe8c:57da", port: 5540},
-    {name: "vmb3", ip: "fe80::250:56ff:fe8c:dc43", port: 5540},
-    {name: "vmb4", ip: "fe80::250:56ff:fe8c:34c3", port: 5540},
-    {name: "vmb5", ip: "fe80::250:56ff:fe8c:50b4", port: 5540},
-    {name: "vmb6", ip: "fe80::250:56ff:fe8c:bfd9", port: 5540},
-    {name: "vmb7", ip: "fe80::250:56ff:fe8c:69e1", port: 5540},
-    {name: "vmb8", ip: "fe80::250:56ff:fe8c:cc0b", port: 5540},
-    {name: "vmb9", ip: "fe80::250:56ff:fe8c:9744", port: 5540},
-    {name: "vmb10", ip: "fe80::250:56ff:fe8c:d55", port: 5540},
-    {name: "vmb11", ip: "fe80::250:56ff:fe8c:1ec1", port: 5540},
-    {name: "vmb12", ip: "fe80::250:56ff:fe8c:1814", port: 5540},
-    {name: "vmb13", ip: "fe80::250:56ff:fe8c:643e", port: 5540},
-    {name: "vmb14", ip: "fe80::250:56ff:fe8c:b863", port: 5540},
-    {name: "vmb15", ip: "fe80::250:56ff:fe8c:7b42", port: 5540},
-    {name: "vmb16", ip: "fe80::250:56ff:fe8c:6c49", port: 5540},
-    {name: "vmb17", ip: "fe80::250:56ff:fe8c:4ebd", port: 5540},
-    {name: "vmb18", ip: "fe80::250:56ff:fe8c:c3b8", port: 5540},
-    {name: "vmb19", ip: "fe80::250:56ff:fe8c:7915", port: 5540},
-    {name: "vmb20", ip: "fe80::250:56ff:fe8c:8ca6", port: 5540},
-];
+type Config = {
+    south: {
+        name: string;
+        ip: string;
+        port: number;
+    }[]
+}
+
+function readConfigFile(configFile: string): Config {
+    // Read `cs525` config.json file from dist/esm folder
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const file = resolve(__dirname, "..", "..", configFile);
+    if (!fs.existsSync(file)) {
+        console.error(`Config file ${file} not found`);
+        exit(1);
+    }
+
+    const data = fs.readFileSync(file, "utf8");
+    const config = JSON.parse(data) as Config;
+    return config;
+}
 
 class RootControllerNode {
     controller: CommissioningController | undefined = undefined;
 
-    async start() {
+    async start(config: Config) {
         logger.info(`node-matter Controller started`);
 
         const controllerStorage = (await storageService.open("controller")).createContext("data");
-        // const ip = (await controllerStorage.has("ip"))
-        //     ? await controllerStorage.get<string>("ip")
-        //     : environment.vars.string("ip");
-        // const port = (await controllerStorage.has("port"))
-        //     ? await controllerStorage.get<number>("port")
-        //     : environment.vars.number("port");
         const uniqueId = (await controllerStorage.has("uniqueid"))
             ? await controllerStorage.get<string>("uniqueid")
             : (environment.vars.string("uniqueid") ?? Time.nowMs().toString());
@@ -104,7 +107,7 @@ class RootControllerNode {
         /** Start the Matter Controller Node */
         await commissioningController.start();
 
-        const promises = vmb_addresses.map(({ name, ip, port }) => {
+        const promises = config.south.map(({ name, ip, port }) => {
             return this.commissionAndPairNode({ name, ip, port, longDiscriminator, setupPin })
                 .catch(error => {
                     logger.error(`Error commissioning node ${name}: ${error}`);
@@ -219,19 +222,35 @@ class RootControllerNode {
     }
 }
 
-const node = new RootControllerNode()
-node.start().catch(error => logger.error(error));
-setInterval(() => {
-    const totalIn = Object.entries(node.controller?.controllerInstance?.exchangeManager.transmissionMetadata || {}).reduce((acc, [key, value]) => {
-        return acc + value;
-    }, 0);
-    const totalOut = Object.entries(node.controller?.controllerInstance?.exchangeManager.transmissionMetadataOut || {}).reduce((acc, [key, value]) => {
-        return acc + value;
-    }, 0);
+async function main() {
+    const program = new Command();
+    program.name("root");
 
-    const data = `${Date.now()}, in ${totalIn}, out ${totalOut}\n`;
-    appendFile('results_pubsub-root.txt', data, (err) => {
-        if (err) throw err;
-        logger.info(data);
-    });
-}, 1000);
+    program
+        .requiredOption("--configFile <file>")
+        .option("--storage-clear");
+
+    program.parse(process.argv);
+    const args = program.opts();
+    const configFile = args.configFile;
+    const config = readConfigFile(configFile);
+
+    const node = new RootControllerNode()
+    node.start(config).catch(error => logger.error(error));
+    setInterval(() => {
+        const totalIn = Object.entries(node.controller?.controllerInstance?.exchangeManager.transmissionMetadata || {}).reduce((acc, [key, value]) => {
+            return acc + value;
+        }, 0);
+        const totalOut = Object.entries(node.controller?.controllerInstance?.exchangeManager.transmissionMetadataOut || {}).reduce((acc, [key, value]) => {
+            return acc + value;
+        }, 0);
+        
+        const data = `${Date.now()}, in ${totalIn}, out ${totalOut}\n`;
+        appendFile('results_pubsub-root.txt', data, (err) => {
+            if (err) throw err;
+            logger.info(data);
+        });
+    }, 1000);
+}
+
+await main();

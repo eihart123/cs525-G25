@@ -504,10 +504,15 @@ class VirtualMatterBrokerNode {
 }
 
 type Config = {
-    name: string;
-    ip: string;
-    port: number;
-}[]
+    north: {
+        port: number;
+    }
+    south: {
+        name: string;
+        ip: string;
+        port: number;
+    }[]
+}
 
 function readConfigFile(configFile: string): Config {
     // Read `cs525` config.json file from dist/esm folder
@@ -529,15 +534,12 @@ async function main() {
     const program = new Command();
     program.name("vmb");
     program
-        .requiredOption("--northPort <port>")
-        .requiredOption("--northDiscriminator <discriminator>")
-        .requiredOption("--northSetupPin <pin>")
-        .requiredOption("--southConfigFile <file>")
+        .requiredOption("--configFile <file>")
         .option("--storage-clear");
 
     program.parse(process.argv);
     const args = program.opts();
-    const configFile = args.southConfigFile;
+    const configFile = args.configFile;
     const config = readConfigFile(configFile);
     console.log({ config });
 
@@ -545,10 +547,10 @@ async function main() {
     const vmb = new VirtualMatterBrokerNode();
     // Start the VMB with a unique instance node ID
     await vmb.start(
-        "something-unique",
-        parseInt(args.northPort),
-        parseInt(args.northDiscriminator),
-        parseInt(args.northSetupPin)
+        `vmb-${config.north.port}`,
+        config.north.port,
+        config.north.port, // discriminator
+        parseInt(`${config.north.port}${config.north.port}`) // setup pin
     );
 
     setInterval(() => {
@@ -556,10 +558,10 @@ async function main() {
     }, 5000);
 
     // Pair each node with the VMB
-    for (const [index, { name, ip, port }] of config.entries()) {
+    for (const [index, { name, ip, port }] of config.south.entries()) {
         console.log(`Pairing node ${index} with name ${name} at ${ip}:${port}`);
         const nodeId = await vmb.pairNode(ip, port, 
-            parseInt(port), // discriminator
+            port, // discriminator
             parseInt(`${port}${port}`) // setup pin
         );
         await vmb.connectNode(nodeId);

@@ -284,14 +284,58 @@ def start_root_controller(
     # update_status(server, "Waiting plz")
     # sleep(20)
 
-    server_num = int(server.split(".")[0][-2:])
-    message_queue.put(server_num)
+    # server_num = int(server.split(".")[0][-2:])
+    # message_queue.put(server_num)
     update_status(server, "Online")
 
-    # for server in SERVERS:
-    #     if server == CONTROLLER_SERVER:
-    #         continue
-    #     message_queue.put("STARTUP ALERT")
+
+def start_level_1_vmb(
+    conn: Connection, server: str, with_vmb: bool, message_queue: SnapshotQueue
+):
+    """Start the root controller on the remote server"""
+    # update_status(server, f"{0} / {len(SERVERS) - 1} endnodes started")
+
+    assert with_vmb is True
+
+    msg_gotten = 0
+    while msg_gotten < 16:
+        try:
+            server_gotten = message_queue.get(timeout=None)
+            msg_gotten += 1
+            update_status(server, f"{msg_gotten} / {len(SERVERS) - 1} endnodes started")
+            status[server]["output"] = "Last from" + server_gotten
+        except Exception as e:
+            raise e
+
+    update_status(server, "Starting tcpdump")
+    dir = "cs525"
+    pcap_dump_file = f"tcpdump_{server.split('.')[0]}.pcap"
+    # filter = "'src portrange 5540-5560 or dst portrange 5540-5560'"
+    # https://github.com/the-tcpdump-group/tcpdump/issues/485
+    cmd1 = f'tmux new-session -d -s tcpdump "tcpdump -i any -U -w {REMOTE_SERVER_DIR}/{pcap_dump_file} {filter}"'
+    result = conn.sudo(
+        cmd1,
+        warn=True,
+    )
+    if result.failed:
+        update_status(server, "Failed to start tcpdump")
+        return
+    cmd2 = f"tmux new-session -d -s server 'bash {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/startup_level1_vmb.sh'"
+    result = conn.sudo(
+        cmd2,
+        warn=True,
+    )
+    if result.failed:
+        update_status(server, "Failed to start level 1 vmb")
+        return
+    with mutex:
+        status[server]["output"] = cmd2
+    # update_status(server, "Waiting plz")
+    # sleep(20)
+
+    # server_num = int(server.split(".")[0][-2:])
+    # message_queue.put(server_num)
+    update_status(server, "Online")
 
 
 def startup_endnodes(
@@ -314,31 +358,44 @@ def startup_endnodes(
 
     update_status(server, "Starting tcpdump")
     dir = "cs525" if with_vmb else "cs525-baseline"
-    pcap_dump_file = f"tcpdump_{server.split('.')[0]}.pcap"
-    # filter = "'src portrange 5540-5560 or dst portrange 5540-5560'"
-    # https://github.com/the-tcpdump-group/tcpdump/issues/485
-    cmd1 = f'tmux new-session -d -s tcpdump "tcpdump -i any -U -w {REMOTE_SERVER_DIR}/{pcap_dump_file} {filter}"'
-    result = conn.sudo(
-        cmd1,
-        warn=True,
+    startup_scripts = (
+        # endnodes need to start up *before* the level 2 vmbs
+        ["startup_endnodes.sh", "startup_level2_vmb.sh"]
+        if with_vmb
+        else [
+            "startup.sh",
+        ]
     )
-    if result.failed:
-        update_status(server, "Failed to start tcpdump")
-        return
-    update_status(server, "Starting endnodes")
-    cmd2 = f"tmux new-session -d -s server 'bash {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/startup.sh'"
-    result = conn.sudo(
-        cmd2,
-        warn=True,
-    )
+    # we don't need tcpdump for the level 2/endnodes
+    if not with_vmb:
+        pcap_dump_file = f"tcpdump_{server.split('.')[0]}.pcap"
+        # filter = "'src portrange 5540-5560 or dst portrange 5540-5560'"
+        # https://github.com/the-tcpdump-group/tcpdump/issues/485
+        cmd1 = f'tmux new-session -d -s tcpdump "tcpdump -i any -U -w {REMOTE_SERVER_DIR}/{pcap_dump_file} {filter}"'
+        result = conn.sudo(
+            cmd1,
+            warn=True,
+        )
+        if result.failed:
+            update_status(server, "Failed to start tcpdump")
+            return
 
-    with mutex:
-        status[server]["output"] = cmd2
-    if result.failed:
-        update_status(server, "Failed to start endnodes")
-        return
-    update_status(server, "Waiting some time so that it can start")
-    sleep(20)
+    update_status(server, "Starting endnodes")
+    for script in startup_scripts:
+        cmd2 = f"tmux new-session -d -s server 'bash {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/{script}'"
+        result = conn.sudo(
+            cmd2,
+            warn=True,
+        )
+
+        with mutex:
+            status[server]["output"] = cmd2
+        if result.failed:
+            update_status(server, f"Failed to start {script}")
+            return
+        update_status(server, "Waiting some time so that it can start")
+        sleep(10)
+
     update_status(server, "Online")
     # message_queue.put(server_num)
     message_queue.put(server)
@@ -364,7 +421,7 @@ def install_config(conn: Connection, server: str):
             )
 
         root_config_file_io = StringIO()
-        json.dump(root_config, root_config_file_io, indent=4)
+        json.dump({"south": root_config}, root_config_file_io, indent=4)
 
         result = conn.put(
             root_config_file_io,
@@ -376,6 +433,7 @@ def install_config(conn: Connection, server: str):
         )
 
     if is_level_1_vmb:
+        my_own_port = 3100 + LEVEL_1_VMB_SERVERS.index(server)
         level_2_vmb_port = 3200 + LEVEL_1_VMB_SERVERS.index(server) * 8
 
         level1_config_file = "vmb_level_1_config.json"
@@ -400,7 +458,14 @@ def install_config(conn: Connection, server: str):
                 break
 
         level1_config_file_io = StringIO()
-        json.dump(level1_config, level1_config_file_io, indent=4)
+        json.dump(
+            {
+                "north": {"ip": ip_mappings[server], "port": my_own_port},
+                "south": level1_config,
+            },
+            level1_config_file_io,
+            indent=4,
+        )
 
         result = conn.put(
             level1_config_file_io,
@@ -441,11 +506,35 @@ def install_config(conn: Connection, server: str):
             )
 
         update_status(server, "Installing config")
+        my_node = None
+        for _, item in enumerate(vmb_vmb_mappings):
+            l1_server = list(item.keys())[0]
+            for i, level_2_vmb_server in enumerate(item[l1_server]):
+                if level_2_vmb_server == server:
+                    my_node = l1_server
+                    break
+
+        my_own_port = 3200 + LEVEL_1_VMB_SERVERS.index(my_node) * 8
+
         level2_config_file_1_io = StringIO()
-        json.dump(level2_config_1, level2_config_file_1_io, indent=4)
+        json.dump(
+            {
+                "north": {"ip": ip_mappings[my_node], "port": my_own_port},
+                "south": level2_config_1,
+            },
+            level2_config_file_1_io,
+            indent=4,
+        )
 
         level2_config_file_2_io = StringIO()
-        json.dump(level2_config_2, level2_config_file_2_io, indent=4)
+        json.dump(
+            {
+                "north": {"ip": ip_mappings[my_node], "port": my_node},
+                "south": level2_config_2,
+            },
+            level2_config_file_2_io,
+            indent=4,
+        )
 
         result = conn.put(
             level2_config_file_1_io,
@@ -620,11 +709,11 @@ def ssh_connect_and_setup(
         stop_server(conn, server)
         # Update files
         update_status(server, "Installing config")
-        # install_config(conn, server)
+        install_config(conn, server)
 
         # TODO: remove
-        # conn.close()
-        # return
+        conn.close()
+        return
 
         # Check if the server directory exists and delete it if it does
         # result = conn.run(f"test -d {REMOTE_SERVER_DIR}", warn=True)
