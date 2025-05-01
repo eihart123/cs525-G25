@@ -182,17 +182,17 @@ def setup_server(conn: Connection, server: str, username: str):
         update_status(server, "Failed to install tmux")
         return
 
-    result = conn.sudo(
-        f"dnf install -y wireshark && usermod -a -G wireshark {username}", warn=True
-    )
-    if result.failed:
-        update_status(server, "Failed to install wireshark")
-        pass
+    # result = conn.sudo(
+    #     f"dnf install -y wireshark && usermod -a -G wireshark {username}", warn=True
+    # )
+    # if result.failed:
+    #     update_status(server, "Failed to install wireshark")
+    #     pass
     # Install node
-    result = conn.sudo("dnf module install -y nodejs:20/common", warn=True)
-    if result.failed:
-        update_status(server, "Failed to install node")
-        return
+    # result = conn.sudo("dnf module install -y nodejs:20/common", warn=True)
+    # if result.failed:
+    #     update_status(server, "Failed to install node")
+    #     return
 
     # Check if MP_DIR exists and create it if it doesn't
     result = conn.run(f"test -d {MP_DIR}", warn=True)
@@ -247,15 +247,17 @@ def start_root_controller(
     """Start the root controller on the remote server"""
     # update_status(server, f"{0} / {len(SERVERS) - 1} endnodes started")
 
-    msg_gotten = 0
-    while msg_gotten < len(SERVERS) - 1:
-        try:
-            server_gotten = message_queue.get(timeout=None)
-            msg_gotten += 1
-            update_status(server, f"{msg_gotten} / {len(SERVERS) - 1} endnodes started")
-            status[server]["output"] = "Last from" + server_gotten
-        except Exception as e:
-            raise e
+    # Use this like a semaphore: block until we have all the endnodes AND level 1 vmbs
+    while True:
+        items = message_queue.snapshot()
+        if len(items) >= 16:
+            update_status(server, f"{len(items) - 16} / {4} level 1 vmbs started")
+        elif len(items) <= 16:
+            update_status(server, f"{len(items)} / {16} endnodes started")
+
+        if len(items) == 16 + 4:
+            break
+        sleep(1)
 
     update_status(server, "Starting root controller")
     dir = "cs525" if with_vmb else "cs525-baseline"
@@ -297,19 +299,25 @@ def start_level_1_vmb(
     conn: Connection, server: str, with_vmb: bool, message_queue: SnapshotQueue
 ):
     """Start the root controller on the remote server"""
-    # update_status(server, f"{0} / {len(SERVERS) - 1} endnodes started")
+    #
 
     assert with_vmb is True
 
-    msg_gotten = 0
-    while msg_gotten < 16:
-        try:
-            server_gotten = message_queue.get(timeout=None)
-            msg_gotten += 1
-            update_status(server, f"{msg_gotten} / {len(SERVERS) - 1} endnodes started")
-            status[server]["output"] = "Last from" + server_gotten
-        except Exception as e:
-            raise e
+    # Use this like a semaphore: block until we have all the endnodes
+    while True:
+        items = message_queue.snapshot()
+        update_status(server, f"{len(items)} / {len(SERVERS) - 1} endnodes started")
+        if len(items) == 16:
+            break
+        sleep(1)
+    # while msg_gotten < 16:
+    #     try:
+    #         server_gotten = message_queue.get(timeout=None)
+    #         msg_gotten += 1
+    #         update_status(server, f"{msg_gotten} / {len(SERVERS) - 1} endnodes started")
+    #         status[server]["output"] = "Last from" + server_gotten
+    #     except Exception as e:
+    #         raise e
 
     update_status(server, "Starting tcpdump")
     dir = "cs525"
@@ -334,11 +342,12 @@ def start_level_1_vmb(
         return
     with mutex:
         status[server]["output"] = cmd2
-    # update_status(server, "Waiting plz")
-    # sleep(20)
 
-    # server_num = int(server.split(".")[0][-2:])
-    # message_queue.put(server_num)
+    update_status(server, "Waiting")
+    sleep(10)
+
+    server_num = int(server.split(".")[0][-2:])
+    message_queue.put(f"L1-{server_num}")
     update_status(server, "Online")
 
 
@@ -351,14 +360,6 @@ def startup_endnodes(
     server_num = int(server.split(".")[0][-2:])
 
     # server_num 2 should be the first end node
-    # while True:
-    #     items = message_queue.snapshot()
-    #     if len(items) == 1:
-    #         # If the previous finished, kick off ours
-    #         if items[0] == server_num - 1:
-    #             _ = message_queue.get()
-    #             break
-    #     sleep(1)
 
     update_status(server, "Starting tcpdump")
     dir = "cs525" if with_vmb else "cs525-baseline"
@@ -622,20 +623,23 @@ def ssh_connect_and_restart(
                     conn, server, with_vmb=with_vmb, message_queue=message_queue
                 )
         else:
+            # This code needs to be first
+            if is_level_2_vmb:
+                startup_endnodes(
+                    conn, server, with_vmb=with_vmb, message_queue=message_queue
+                )
+
             if is_root:
                 # start the root controller
                 start_root_controller(
                     conn, server, with_vmb=with_vmb, message_queue=message_queue
                 )
+
             if is_level_1_vmb:
                 start_level_1_vmb(
                     conn, server, with_vmb=with_vmb, message_queue=message_queue
                 )
 
-            if is_level_2_vmb:
-                startup_endnodes(
-                    conn, server, with_vmb=with_vmb, message_queue=message_queue
-                )
         # start_server(conn, server)
 
     except Exception as e:
@@ -797,6 +801,11 @@ def ssh_connect_and_setup(
                     conn, server, with_vmb=with_vmb, message_queue=message_queue
                 )
         else:
+            # This code needs to be first
+            if is_level_2_vmb:
+                startup_endnodes(
+                    conn, server, with_vmb=with_vmb, message_queue=message_queue
+                )
             if is_root:
                 # start the root controller
                 start_root_controller(
@@ -804,11 +813,6 @@ def ssh_connect_and_setup(
                 )
             if is_level_1_vmb:
                 start_level_1_vmb(
-                    conn, server, with_vmb=with_vmb, message_queue=message_queue
-                )
-
-            if is_level_2_vmb:
-                startup_endnodes(
                     conn, server, with_vmb=with_vmb, message_queue=message_queue
                 )
 
