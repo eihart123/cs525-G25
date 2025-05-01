@@ -588,6 +588,8 @@ def ssh_connect_and_restart(
     password: str,
     with_vmb: bool,
     is_root: bool,
+    is_level_1_vmb: bool,
+    is_level_2_vmb: bool,
     message_queue: SnapshotQueue,
 ):
     """Connect to a server using SSH and restart the server"""
@@ -605,15 +607,31 @@ def ssh_connect_and_restart(
         setup_server(conn, server, username)
         stop_server(conn, server)
         # start_root_controller(conn, server, with_vmb=with_vmb)
-        if is_root:
-            # start the root controller
-            start_root_controller(
-                conn, server, with_vmb=with_vmb, message_queue=message_queue
-            )
+        if with_vmb:
+            # install_config(conn, server)
+            if is_root:
+                start_root_controller(
+                    conn, server, with_vmb=with_vmb, message_queue=message_queue
+                )
+            else:
+                startup_endnodes(
+                    conn, server, with_vmb=with_vmb, message_queue=message_queue
+                )
         else:
-            startup_endnodes(
-                conn, server, with_vmb=with_vmb, message_queue=message_queue
-            )
+            if is_root:
+                # start the root controller
+                start_root_controller(
+                    conn, server, with_vmb=with_vmb, message_queue=message_queue
+                )
+            if is_level_1_vmb:
+                start_level_1_vmb(
+                    conn, server, with_vmb=with_vmb, message_queue=message_queue
+                )
+
+            if is_level_2_vmb:
+                startup_endnodes(
+                    conn, server, with_vmb=with_vmb, message_queue=message_queue
+                )
         # start_server(conn, server)
 
     except Exception as e:
@@ -628,6 +646,8 @@ def ssh_connect_and_get_logs(
     password: str,
     with_vmb: bool,
     is_root: bool,
+    is_level_1_vmb: bool,
+    is_level_2_vmb: bool,
     message_queue: SnapshotQueue,
 ):
     """Connect to a server using SSH and get the logs"""
@@ -691,6 +711,8 @@ def ssh_connect_and_setup(
     password: str,
     with_vmb: bool,
     is_root: bool,
+    is_level_1_vmb: bool,
+    is_level_2_vmb: bool,
     message_queue: SnapshotQueue,
 ):
     """Connect to a server using SSH and setup the server"""
@@ -708,12 +730,12 @@ def ssh_connect_and_setup(
         setup_server(conn, server, username)
         stop_server(conn, server)
         # Update files
-        update_status(server, "Installing config")
-        install_config(conn, server)
+        # update_status(server, "Installing config")
+        # install_config(conn, server)
 
         # TODO: remove
-        conn.close()
-        return
+        # conn.close()
+        # return
 
         # Check if the server directory exists and delete it if it does
         # result = conn.run(f"test -d {REMOTE_SERVER_DIR}", warn=True)
@@ -760,15 +782,31 @@ def ssh_connect_and_setup(
                 return
         build_server(conn, server)
         # start_server(conn, server)
-        if is_root:
-            # start the root controller
-            start_root_controller(
-                conn, server, with_vmb=with_vmb, message_queue=message_queue
-            )
+        if with_vmb:
+            # install_config(conn, server)
+            if is_root:
+                start_root_controller(
+                    conn, server, with_vmb=with_vmb, message_queue=message_queue
+                )
+            else:
+                startup_endnodes(
+                    conn, server, with_vmb=with_vmb, message_queue=message_queue
+                )
         else:
-            startup_endnodes(
-                conn, server, with_vmb=with_vmb, message_queue=message_queue
-            )
+            if is_root:
+                # start the root controller
+                start_root_controller(
+                    conn, server, with_vmb=with_vmb, message_queue=message_queue
+                )
+            if is_level_1_vmb:
+                start_level_1_vmb(
+                    conn, server, with_vmb=with_vmb, message_queue=message_queue
+                )
+
+            if is_level_2_vmb:
+                startup_endnodes(
+                    conn, server, with_vmb=with_vmb, message_queue=message_queue
+                )
 
     except Exception as e:
         update_status(server, f"Error: {str(e)}")
@@ -782,6 +820,8 @@ def ssh_connect_and_stop(
     password: str,
     with_vmb: bool,
     is_root: bool,
+    is_level_1_vmb: bool,
+    is_level_2_vmb: bool,
     message_queue: SnapshotQueue,
 ):
     """Connect to a server using SSH and stop the server process"""
@@ -953,9 +993,21 @@ def main():
     # Start a thread for each server
     for server in SERVERS:
         is_root = server == CONTROLLER_SERVER
+        is_level_1_vmb = server in LEVEL_1_VMB_SERVERS
+        server_num = int(server.split(".")[0][-2:])
+        is_level_2_vmb = server_num >= 5
         thread = threading.Thread(
             target=target_action,
-            args=(server, username, password, with_vmb, is_root, message_queue),
+            args=(
+                server,
+                username,
+                password,
+                with_vmb,
+                is_root,
+                is_level_1_vmb,
+                is_level_2_vmb,
+                message_queue,
+            ),
         )
         thread.start()
         threads.append(thread)
