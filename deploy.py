@@ -385,8 +385,8 @@ def startup_endnodes(
             return
 
     update_status(server, "Starting endnodes")
-    for script in startup_scripts:
-        cmd2 = f"tmux new-session -d -s server 'bash {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/{script}'"
+    for i, script in enumerate(startup_scripts):
+        cmd2 = f"tmux new-session -d -s server{i} 'bash {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/{script}'"
         result = conn.sudo(
             cmd2,
             warn=True,
