@@ -93,7 +93,7 @@ async function main() {
         /**
          * Create a Matter ServerNode, which contains the Root Endpoint and all relevant data and configuration
          */
-        const uniqueId = port;
+        const uniqueId = `${port}`;
         const productName = `${name}:${port} #${index}`;
         const vendorName = "CS 525 G25";
         const interval = 10; // update every 10 seconds
