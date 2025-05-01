@@ -44,25 +44,25 @@ logger.info(
 );
 
 const vm_addresses = [
-    {name: "vm2", ip: "sp25-cs525-2502.cs.illinois.edu"}, // VM 2
-    {name: "vm3", ip: "sp25-cs525-2503.cs.illinois.edu"},
-    {name: "vm4", ip: "sp25-cs525-2504.cs.illinois.edu"},
-    {name: "vm5", ip: "sp25-cs525-2505.cs.illinois.edu"},
-    {name: "vm6", ip: "sp25-cs525-2506.cs.illinois.edu"},
-    {name: "vm7", ip: "sp25-cs525-2507.cs.illinois.edu"},
-    {name: "vm8", ip: "sp25-cs525-2508.cs.illinois.edu"},
-    {name: "vm9", ip: "sp25-cs525-2509.cs.illinois.edu"},
-    {name: "vm10", ip: "sp25-cs525-2510.cs.illinois.edu"},
-    {name: "vm11", ip: "sp25-cs525-2511.cs.illinois.edu"},
-    {name: "vm12", ip: "sp25-cs525-2512.cs.illinois.edu"},
-    {name: "vm13", ip: "sp25-cs525-2513.cs.illinois.edu"},
-    {name: "vm14", ip: "sp25-cs525-2514.cs.illinois.edu"},
-    {name: "vm15", ip: "sp25-cs525-2515.cs.illinois.edu"},
-    {name: "vm16", ip: "sp25-cs525-2516.cs.illinois.edu"},
-    {name: "vm17", ip: "sp25-cs525-2517.cs.illinois.edu"},
-    {name: "vm18", ip: "sp25-cs525-2518.cs.illinois.edu"},
-    {name: "vm19", ip: "sp25-cs525-2519.cs.illinois.edu"},
-    {name: "vm20", ip: "sp25-cs525-2520.cs.illinois.edu"},
+    {name: "vm2", ip: "172.22.151.94"}, // VM 2
+    {name: "vm3", ip: "172.22.153.135"},
+    {name: "vm4", ip: "172.22.155.115"},
+    {name: "vm5", ip: "172.22.151.95"},
+    {name: "vm6", ip: "172.22.153.136"},
+    {name: "vm7", ip: "172.22.155.116"},
+    {name: "vm8", ip: "172.22.151.96"},
+    {name: "vm9", ip: "172.22.153.137"},
+    {name: "vm10", ip: "172.22.155.117"},
+    {name: "vm11", ip: "172.22.151.97"},
+    {name: "vm12", ip: "172.22.153.138"},
+    {name: "vm13", ip: "172.22.155.118"},
+    {name: "vm14", ip: "172.22.151.98"},
+    {name: "vm15", ip: "172.22.153.139"},
+    {name: "vm16", ip: "172.22.155.119"},
+    {name: "vm17", ip: "172.22.151.99"},
+    {name: "vm18", ip: "172.22.153.140"},
+    {name: "vm19", ip: "172.22.155.120"},
+    {name: "vm20", ip: "172.22.151.100"},
 ];
 
 const all_endnodes = vm_addresses.flatMap((vm) => {
