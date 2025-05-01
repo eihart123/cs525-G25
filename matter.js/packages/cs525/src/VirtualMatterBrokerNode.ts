@@ -540,18 +540,18 @@ class VirtualMatterBrokerNode {
     }
 
     async log_results() {
-        const totalIn = Object.entries(this.#controller?.controllerInstance?.exchangeManager?.transmissionMetadata || {}).reduce((acc, [key, value]) => {
-            return acc + value;
-        }, 0);
-        const totalOut = Object.entries(this.#controller?.controllerInstance?.exchangeManager?.transmissionMetadataOut || {}).reduce((acc, [key, value]) => {
-            return acc + value;
-        }, 0);
+        // const totalIn = Object.entries(this.#controller?.controllerInstance?.exchangeManager?.transmissionMetadata || {}).reduce((acc, [key, value]) => {
+        //     return acc + value;
+        // }, 0);
+        // const totalOut = Object.entries(this.#controller?.controllerInstance?.exchangeManager?.transmissionMetadataOut || {}).reduce((acc, [key, value]) => {
+        //     return acc + value;
+        // }, 0);
 
-        const data = `${Date.now()}, in ${totalIn}, out ${totalOut}\n`;
-        appendFile('results_updated-bridge.txt', data, (err) => {
-            if (err) throw err;
-            logger.info(`Total in: ${totalIn}, Total out: ${totalOut}`);
-        });
+        // const data = `${Date.now()}, in ${totalIn}, out ${totalOut}\n`;
+        // appendFile('results_updated-bridge.txt', data, (err) => {
+        //     if (err) throw err;
+        //     logger.info(`Total in: ${totalIn}, Total out: ${totalOut}`);
+        // });
     }
 }
 
@@ -605,9 +605,9 @@ async function main() {
         parseInt(`${config.north.port}${config.north.port}`) // setup pin
     );
 
-    setInterval(() => {
-        vmb.log_results()
-    }, 5000);
+    // setInterval(() => {
+    //     vmb.log_results()
+    // }, 5000);
 
     // Pair each node with the VMB
     for (const [index, { name, ip, port }] of config.south.entries()) {

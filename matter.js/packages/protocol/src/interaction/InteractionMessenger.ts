@@ -220,7 +220,7 @@ export interface InteractionRecipient {
 
 export class InteractionServerMessenger extends InteractionMessenger {
     async handleRequest(recipient: InteractionRecipient) {
-        logger.info(`Handling request on ${this.getExchangeChannelName()}`);
+        logger.debug(`Handling request on ${this.getExchangeChannelName()}`);
         let continueExchange = true; // are more messages expected in this "transaction"?
         let isGroupSession = false;
         try {

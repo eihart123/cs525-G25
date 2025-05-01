@@ -572,7 +572,7 @@ export class InteractionServer implements ProtocolHandler, InteractionRecipient 
         readRequest: ReadRequest,
         message: Message,
     ): Promise<{ dataReport: DataReport; payload?: DataReportPayloadIterator }> {
-        logger.info("handleReadRequest", readRequest, exchange, message);
+        logger.debug("handleReadRequest", readRequest, exchange, message);
         const { attributeRequests, eventRequests, isFabricFiltered, interactionModelRevision } = readRequest;
         logger.debug(
             `Received read request from ${exchange.channel.name}: attributes:${
@@ -626,7 +626,7 @@ export class InteractionServer implements ProtocolHandler, InteractionRecipient 
         offline = false,
     ) {
         // XXX thing
-        logger.info("readAttribute", _path) // , attribute.value, exchange, isFabricFiltered, message);
+        logger.debug("readAttribute", _path) // , attribute.value, exchange, isFabricFiltered, message);
         return attribute.getWithVersion(exchange.session, isFabricFiltered, offline ? undefined : message);
     }
 

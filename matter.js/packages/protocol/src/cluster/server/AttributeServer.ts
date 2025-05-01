@@ -292,7 +292,7 @@ export class FixedAttributeServer<T> extends BaseAttributeServer<T> {
      */
     get(session: Session, isFabricFiltered: boolean, message?: Message): T {
         // TODO: check ACL
-        console.log(`get: ${this.name}`);
+        // console.log(`get: ${this.name}`);
         return this.getter(session, this.endpoint, isFabricFiltered, message);
     }
 
@@ -304,7 +304,7 @@ export class FixedAttributeServer<T> extends BaseAttributeServer<T> {
      * attributes.
      */
     getWithVersion(session: Session, isFabricFiltered: boolean, message?: Message) {
-        console.log(`getWithVersion: ${this.name}`);
+        // console.log(`getWithVersion: ${this.name}`);
         return { version: this.datasource.version, value: this.get(session, isFabricFiltered, message) };
     }
 
