@@ -181,27 +181,27 @@ class ControllerNode {
           await new Promise(resolve => setTimeout(resolve, 2000));
 
           // start commissioning each node in batches of 20 every 5 seconds
-          // const allPromises = [];
-          // for (let i = 0; i < myList.length; i += 20) {
-          //   const batch = myList.slice(i, i + 20);
-          //   logger.info(`Commissioning batch ${Math.floor(i / 20) + 1} of ${Math.ceil(myList.length / 20)}`);
-          //   const batchPromises = batch.map(options => commissioningController.commissionNode(options)
-          //     .then(result => {
-          //       logger.info(`Commissioning done successfully for node ${result}`);
-          //       return result;
-          //     })
-          //   );
-          //   allPromises.push(...batchPromises);
-          //   await new Promise(resolve => setTimeout(resolve, 5000 + 1000)); // Wait for 5 seconds before commissioning the next batch
-          // }
-          // await Promise.all(allPromises);
-          // const endTime = Date.now();
-          // const commissioningTime = endTime - startTime;
-          // logger.info(`Commissioning completed in ${commissioningTime}ms`);
-          await Promise.all(myList.map(async (options) => {
-            const nodeId = await commissioningController.commissionNode(options);
-            console.log(`Commissioning successfully done with nodeId ${nodeId}`);
-          }))
+          const allPromises = [];
+          for (let i = 0; i < myList.length; i += 20) {
+            const batch = myList.slice(i, i + 20);
+            logger.info(`Commissioning batch ${Math.floor(i / 20) + 1} of ${Math.ceil(myList.length / 20)}`);
+            const batchPromises = batch.map(options => commissioningController.commissionNode(options)
+              .then(result => {
+                logger.info(`Commissioning done successfully for node ${result}`);
+                return result;
+              })
+            );
+            allPromises.push(...batchPromises);
+            await new Promise(resolve => setTimeout(resolve, 5000 + 1000)); // Wait for 5 seconds before commissioning the next batch
+          }
+          await Promise.all(allPromises);
+          const endTime = Date.now();
+          const commissioningTime = endTime - startTime;
+          logger.info(`Commissioning completed in ${commissioningTime}ms`);
+          // await Promise.all(myList.map(async (options) => {
+          //   const nodeId = await commissioningController.commissionNode(options);
+          //   console.log(`Commissioning successfully done with nodeId ${nodeId}`);
+          // }))
         }
 
         // After commissioning or if we have a commissioned node we can connect to it

@@ -275,12 +275,18 @@ def start_root_controller(
 
     # Use this like a semaphore: block until we have all the endnodes AND level 1 vmbs
     if not not not with_vmb:  # :troll:
-        pass
+        # pass
         # while True:
         #     items = message_queue.snapshot()
         #     got += 1
         #     if items[0]
         #         break
+        # wait until we have (most) of the endnodes
+        while True:
+            items = message_queue.snapshot()
+            if len(items) >= 18:
+                break
+            sleep(1)
 
     else:
         while True:
