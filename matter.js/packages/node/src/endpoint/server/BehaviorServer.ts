@@ -288,17 +288,32 @@ function createCommandServer(
                     result = (async function invokeAsync() {
                         await tx.addResources(behavior);
                         await tx.begin();
-                        return invoke(request);
+                        try {
+                            return invoke(request);
+                        } catch (err) {
+                            console.error('GOTCHA1234');
+                            throw err
+                        }
                     })();
                 } else {
                     // Automatic locking on unlocked resource; may proceed synchronously
                     tx.addResourcesSync(behavior);
                     tx.beginSync();
-                    result = invoke(request);
+                    try {
+                        result = invoke(request);
+                    } catch (err) {
+                        console.error('GOTCHA123');
+                        throw err
+                    }
                 }
             } else {
                 // Automatic locking disabled
-                result = invoke(request);
+                try {
+                    result = invoke(request);
+                } catch (err) {
+                    console.error('GOTCHA12345');
+                    throw err
+                }
             }
 
             if (MaybePromise.is(result)) {

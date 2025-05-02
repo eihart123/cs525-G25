@@ -1237,9 +1237,20 @@ export class InteractionClient {
                 if (this.#queue === undefined) {
                     throw new ImplementationError("Cannot execute queued operation without a queue.");
                 }
-                return await this.#queue.add(() => invoke(messenger));
+                return await this.#queue.add(() => {
+                    try {
+                        const res = invoke(messenger)
+                        return res
+                    } catch (e) {
+                        console.error("WE GOTCHA NOW 2")
+                        throw e
+                    }
+                });
             }
             result = await invoke(messenger);
+        } catch (e) {
+            console.error("WE GOTCHA NOW")
+            throw e
         } finally {
             // No need to wait for closing and final ack message here, for us all is done
             messenger.close().catch(error => logger.info(`Error closing messenger: ${error}`));
