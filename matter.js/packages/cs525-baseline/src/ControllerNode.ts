@@ -200,7 +200,11 @@ class ControllerNode {
             allPromises.push(...batchPromises);
             await new Promise(resolve => setTimeout(resolve, 5000 + 1000)); // Wait for 5 seconds before commissioning the next batch
           }
-          await Promise.all(allPromises);
+          try {
+              await Promise.all(allPromises);
+          } catch (error) {
+            logger.error('This is unexpected...')
+          }
           const endTime = Date.now();
           const commissioningTime = endTime - startTime;
           logger.info(`Commissioning for batch ${Math.floor(i / 20) + i} completed in ${commissioningTime}ms`);

@@ -171,7 +171,8 @@ class InteractionMessenger {
         }
 
         if (expectedMessageType !== undefined && messageType !== expectedMessageType) {
-            throw new UnexpectedDataError(
+            // throw new UnexpectedDataError(
+            logger.error(
                 `Received unexpected message for ${expectedMessageInfo} type: ${messageType}, expected: ${expectedMessageType}`,
             );
         }
