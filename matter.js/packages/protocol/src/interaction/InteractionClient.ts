@@ -1275,7 +1275,7 @@ export class InteractionClient {
             result = await invoke(messenger);
         } catch (e) {
             console.error(`WE GOTCHA NOW: ${e}`)
-            return undefined;
+            return undefined as T;
         } finally {
             // No need to wait for closing and final ack message here, for us all is done
             messenger.close().catch(error => logger.info(`Error closing messenger: ${error}`));
