@@ -274,16 +274,25 @@ def start_root_controller(
     # update_status(server, f"{0} / {len(SERVERS) - 1} endnodes started")
 
     # Use this like a semaphore: block until we have all the endnodes AND level 1 vmbs
-    while True:
-        items = message_queue.snapshot()
-        if len(items) >= 16:
-            update_status(server, f"{len(items) - 16} / {4} level 1 vmbs started")
-        elif len(items) <= 16:
-            update_status(server, f"{len(items)} / {16} endnodes started")
+    if not not not with_vmb:  # :troll:
+        got = 0
+        while True:
+            _ = message_queue.get(timeout=None)
+            got += 1
+            if got >= len(SERVERS) - 1:
+                break
 
-        if len(items) >= 16 + 4:
-            break
-        sleep(1)
+    else:
+        while True:
+            items = message_queue.snapshot()
+            if len(items) >= 16:
+                update_status(server, f"{len(items) - 16} / {4} level 1 vmbs started")
+            elif len(items) <= 16:
+                update_status(server, f"{len(items)} / {16} endnodes started")
+
+            if len(items) >= 16 + 4:
+                break
+            sleep(1)
 
     update_status(server, "Starting root controller")
     dir = "cs525" if with_vmb else "cs525-baseline"
@@ -303,7 +312,10 @@ def start_root_controller(
     if result.failed:
         update_status(server, "Failed to start tcpdump")
         return
-    cmd2 = f"tmux new-session -d -s server 'bash {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/startup_root.sh'"
+    if with_vmb:
+        cmd2 = f"tmux new-session -d -s server 'bash {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/startup_root.sh'"
+    else:
+        cmd2 = f"tmux new-session -d -s server 'node {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/dist/esm/{serverFile} -- --storage-clear  2>&1 | tee {REMOTE_SERVER_DIR}/matter.js/packages/{dir}/root.log'"
     result = conn.sudo(
         cmd2,
         warn=True,
@@ -540,14 +552,16 @@ def install_config(conn: Connection, server: str):
 
         update_status(server, "Installing config")
         node_above = None
+        my_own_idx = None
         for _, item in enumerate(vmb_vmb_mappings):
             l1_server = list(item.keys())[0]
             for i, level_2_vmb_server in enumerate(item[l1_server]):
                 if level_2_vmb_server == server:
                     node_above = l1_server
+                    my_own_idx = i
                     break
 
-        my_own_port = 3200 + LEVEL_1_VMB_SERVERS.index(node_above) * 8
+        my_own_port = 3200 + LEVEL_1_VMB_SERVERS.index(node_above) * 8 + my_own_idx * 2
 
         level2_config_file_1_io = StringIO()
         json.dump(
@@ -562,7 +576,7 @@ def install_config(conn: Connection, server: str):
         level2_config_file_2_io = StringIO()
         json.dump(
             {
-                "north": {"ip": ip_mappings[server], "port": my_own_port},
+                "north": {"ip": ip_mappings[server], "port": my_own_port + 1},
                 "south": level2_config_2,
             },
             level2_config_file_2_io,

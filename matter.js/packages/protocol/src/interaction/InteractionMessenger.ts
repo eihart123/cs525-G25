@@ -245,7 +245,7 @@ export class InteractionServerMessenger extends InteractionMessenger {
                         );
 
                         // This potentially sends multiple DataReport Messages
-                        console.log("handleRequest . sendDataReport");
+                        // console.log("handleRequest . sendDataReport");
                         await this.sendDataReport(dataReport, readRequest.isFabricFiltered, payload);
                         break;
                     }
@@ -341,7 +341,7 @@ export class InteractionServerMessenger extends InteractionMessenger {
 
             /** Helper method to send out the current dataReport and reset the relevant state for the next chunk. */
             const sendAndResetReport = async () => {
-                console.log("sendAndResetReport helper");
+                // console.debug("sendAndResetReport helper");
                 await this.sendDataReportMessage(dataReport, waitForAck);
                 // Empty the dataReport data fields for the next chunk and reset the messageSize
                 delete dataReport.attributeReports;
