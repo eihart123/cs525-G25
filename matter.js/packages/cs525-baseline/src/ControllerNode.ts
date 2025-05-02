@@ -25,6 +25,7 @@ const logger = Logger.get("Controller");
 const numDevices = 20; // Number of devices to commission
 
 const environment = Environment.default;
+Logger.level = "debug";
 
 if (environment.vars.get("ble")) {
     // Initialize Ble
