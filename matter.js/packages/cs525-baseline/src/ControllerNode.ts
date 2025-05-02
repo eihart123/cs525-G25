@@ -44,26 +44,26 @@ logger.info(
 );
 
 const vm_addresses = [
-    {name: "vm2", ip: "172.22.151.94"}, // VM 2
-    {name: "vm3", ip: "172.22.153.135"},
-    {name: "vm4", ip: "172.22.155.115"},
-    {name: "vm5", ip: "172.22.151.95"},
-    {name: "vm6", ip: "172.22.153.136"},
-    {name: "vm7", ip: "172.22.155.116"},
-    {name: "vm8", ip: "172.22.151.96"},
-    {name: "vm9", ip: "172.22.153.137"},
-    {name: "vm10", ip: "172.22.155.117"},
-    {name: "vm11", ip: "172.22.151.97"},
-    {name: "vm12", ip: "172.22.153.138"},
-    {name: "vm13", ip: "172.22.155.118"},
-    {name: "vm14", ip: "172.22.151.98"},
-    {name: "vm15", ip: "172.22.153.139"},
-    {name: "vm16", ip: "172.22.155.119"},
-    {name: "vm17", ip: "172.22.151.99"},
-    {name: "vm18", ip: "172.22.153.140"},
-    {name: "vm19", ip: "172.22.155.120"},
-    {name: "vm20", ip: "172.22.151.100"},
-];
+    {name: "vm2", ip: "fe80::250:56ff:fe8c:57da" }, // VM 2
+    {name: "vm3", ip: "fe80::250:56ff:fe8c:dc43" },
+    {name: "vm4", ip: "fe80::250:56ff:fe8c:34c3" },
+    {name: "vm5", ip: "fe80::250:56ff:fe8c:50b4" },
+    {name: "vm6", ip: "fe80::250:56ff:fe8c:bfd9" },
+    {name: "vm7", ip: "fe80::250:56ff:fe8c:69e1" },
+    {name: "vm8", ip: "fe80::250:56ff:fe8c:cc0b" },
+    {name: "vm9", ip: "fe80::250:56ff:fe8c:9744" },
+    {name: "vm10", ip:"fe80::250:56ff:fe8c:d55" },
+    {name: "vm11", ip:"fe80::250:56ff:fe8c:1ec1" },
+    {name: "vm12", ip:"fe80::250:56ff:fe8c:1814" },
+    {name: "vm13", ip:"fe80::250:56ff:fe8c:643e" },
+    {name: "vm14", ip:"fe80::250:56ff:fe8c:b863" },
+    {name: "vm15", ip:"fe80::250:56ff:fe8c:7b42" },
+    {name: "vm16", ip:"fe80::250:56ff:fe8c:6c49" },
+    {name: "vm17", ip:"fe80::250:56ff:fe8c:4ebd" },
+    {name: "vm18", ip:"fe80::250:56ff:fe8c:c3b8" },
+    {name: "vm19", ip:"fe80::250:56ff:fe8c:7915" },
+    {name: "vm20", ip:"fe80::250:56ff:fe8c:8ca6" }
+]
 
 const all_endnodes = vm_addresses.flatMap((vm) => {
     const endnodes: any = [];
