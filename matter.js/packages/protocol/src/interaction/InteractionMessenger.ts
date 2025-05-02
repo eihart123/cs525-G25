@@ -166,7 +166,7 @@ class InteractionMessenger {
         try {
             this.throwIfErrorStatusMessage(message, expectedMessageInfo);
         } catch (e: any) {
-            console.debug(`Error while processing message: ${e.message}`);
+            logger.info(`Error while processing message: ${e.message}`);
             // throw new UnexpectedDataError(`Rethrowing error: "${e.message}"`, )
         }
 
