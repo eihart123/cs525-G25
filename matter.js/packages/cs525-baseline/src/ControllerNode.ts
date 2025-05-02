@@ -181,19 +181,21 @@ class ControllerNode {
           await new Promise(resolve => setTimeout(resolve, 2000));
 
           // start commissioning each node in batches of 20 every 5 seconds
-          const allPromises: Promise<NodeId>[]  = [];
+          const allPromises: Promise<any>[]  = [];
           for (let i = 0; i < myList.length; i += 20) {
             const batch = myList.slice(i, i + 20);
             logger.info(`Commissioning batch ${Math.floor(i / 20) + 1} of ${Math.ceil(myList.length / 20)}`);
-            const batchPromises: Promise<NodeId>[] = batch.map((options) => {
+            const batchPromises: Promise<any>[] = batch.map((options) => {
               try {
                 const result = commissioningController.commissionNode(options)
                 
                 // logger.info(`Commissioning done successfully for node ${result}`);
                 return result;
               } catch (error) {
+                const newError = new Error(`Commissioning failed for node ${options}: ${error}`)
                 logger.error(`Commissioning failed for node ${options}: ${error}`);
-                return Promise.reject(error); // Reject the promise to handle errors
+                return Promise.resolve()
+                // return Promise.reject(newError); // Reject the promise to handle errors
               }
             });
             allPromises.push(...batchPromises);

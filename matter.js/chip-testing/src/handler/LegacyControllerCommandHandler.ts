@@ -306,31 +306,44 @@ export class LegacyControllerCommandHandler extends CommandHandler {
         if (!clusterCommand) {
             throw new Error("Command for Cluster not found");
         }
-        return await client.invoke<Command<any, any, any>>({
-            endpointId,
-            clusterId,
-            command: clusterCommand,
-            request: commandData,
-            timedRequestTimeoutMs: timedInteractionTimeoutMs,
-            skipValidation: true,
-        });
+        try {
+
+            const res = await client.invoke<Command<any, any, any>>({
+                endpointId,
+                clusterId,
+                command: clusterCommand,
+                request: commandData,
+                timedRequestTimeoutMs: timedInteractionTimeoutMs,
+                skipValidation: true,
+            });
+            return res
+        } catch (err) {
+            console.error('Gotcha legacy')
+            throw err;
+        }
     }
 
     /** InvokeById minimalistic handler because only used for error testing */
     async handleInvokeById(data: InvokeByIdRequest): Promise<void> {
         const { nodeId, endpointId, clusterId, commandId, data: commandData, timedInteractionTimeoutMs } = data;
         const client = await (await this.#controllerInstance.getNode(nodeId)).getInteractionClient();
-        await client.invoke<Command<any, any, any>>({
-            endpointId,
-            clusterId: clusterId,
-            command: Command(commandId, TlvAny, 0x00, TlvNoResponse, {
-                timed: timedInteractionTimeoutMs !== undefined,
-            }),
-            request: commandData === undefined ? TlvVoid.encodeTlv() : TlvObject({}).encodeTlv(commandData as any),
-            asTimedRequest: timedInteractionTimeoutMs !== undefined,
-            timedRequestTimeoutMs: timedInteractionTimeoutMs,
-            skipValidation: true,
-        });
+        try {
+            const res = await client.invoke<Command<any, any, any>>({
+                endpointId,
+                clusterId: clusterId,
+                command: Command(commandId, TlvAny, 0x00, TlvNoResponse, {
+                    timed: timedInteractionTimeoutMs !== undefined,
+                }),
+                request: commandData === undefined ? TlvVoid.encodeTlv() : TlvObject({}).encodeTlv(commandData as any),
+                asTimedRequest: timedInteractionTimeoutMs !== undefined,
+                timedRequestTimeoutMs: timedInteractionTimeoutMs,
+                skipValidation: true,
+            });
+            return res
+        } catch (err) {
+            console.error('Gotcha legacy again')
+            throw err;
+        }
     }
 
     async handleWriteAttributeById(data: WriteAttributeByIdRequest): Promise<void> {
