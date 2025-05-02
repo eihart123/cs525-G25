@@ -82,10 +82,10 @@ export type ExchangeSendOptions = {
  * The maximum number of transmission attempts for a given reliable message. The sender MAY choose this value as it
  * sees fit.
  */
-const MRP_MAX_TRANSMISSIONS = 10;
+const MRP_MAX_TRANSMISSIONS = 5;
 
 /** The base number for the exponential backoff equation. */
-const MRP_BACKOFF_BASE = 1.2;
+const MRP_BACKOFF_BASE = 1.6;
 
 /** The scaler for random jitter in the backoff equation. */
 const MRP_BACKOFF_JITTER = 0.25;
@@ -94,7 +94,7 @@ const MRP_BACKOFF_JITTER = 0.25;
 const MRP_BACKOFF_MARGIN = 1.1;
 
 /** The number of retransmissions before transitioning from linear to exponential backoff. */
-const MRP_BACKOFF_THRESHOLD = 2;
+const MRP_BACKOFF_THRESHOLD = 1;
 
 /** @see {@link MatterSpecification.v12.Core}, section 4.11.8 */
 const MRP_STANDALONE_ACK_TIMEOUT_MS = 200;

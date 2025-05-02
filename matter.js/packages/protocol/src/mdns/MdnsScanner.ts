@@ -641,7 +641,7 @@ export class MdnsScanner implements Scanner {
      */
     async findCommissionableDevices(
         identifier: CommissionableDeviceIdentifiers,
-        timeoutSeconds = 120,
+        timeoutSeconds = 5,
         ignoreExistingRecords = false,
     ): Promise<CommissionableDevice[]> {
         let storedRecords = ignoreExistingRecords

@@ -183,7 +183,7 @@ export class ControllerCommissioner {
         options: DiscoveryAndCommissioningOptions,
     ): Promise<{ paseSecureChannel: MessageChannel; discoveryData?: DiscoveryData }> {
         const {
-            discovery: { timeoutSeconds = 120 },
+            discovery: { timeoutSeconds = 30 },
             passcode,
         } = options;
 
