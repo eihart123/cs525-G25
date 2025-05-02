@@ -163,7 +163,12 @@ class InteractionMessenger {
         if (expectedMessageType !== undefined && expectedMessageInfo === undefined) {
             expectedMessageInfo = MessageType[expectedMessageType];
         }
-        this.throwIfErrorStatusMessage(message, expectedMessageInfo);
+        try {
+            this.throwIfErrorStatusMessage(message, expectedMessageInfo);
+        } catch (e: any) {
+            throw new UnexpectedDataError(`Rethrowing error: "${e.message}"`, )
+        }
+
         if (expectedMessageType !== undefined && messageType !== expectedMessageType) {
             throw new UnexpectedDataError(
                 `Received unexpected message for ${expectedMessageInfo} type: ${messageType}, expected: ${expectedMessageType}`,
