@@ -203,7 +203,7 @@ class ControllerNode {
           await Promise.all(allPromises);
           const endTime = Date.now();
           const commissioningTime = endTime - startTime;
-          logger.info(`Commissioning completed in ${commissioningTime}ms`);
+          logger.info(`Commissioning for batch ${Math.floor(i / 20) + i} completed in ${commissioningTime}ms`);
           // await Promise.all(myList.map(async (options) => {
           //   const nodeId = await commissioningController.commissionNode(options);
           //   console.log(`Commissioning successfully done with nodeId ${nodeId}`);
@@ -387,10 +387,13 @@ class ControllerNode {
             //         }, 60000);
             //     }
             // }
-        } finally {
-            //await matterServer.close(); // Comment out when subscribes are used, else the connection will be closed
-            setTimeout(() => process.exit(0), 1000000);
+        } catch (error) {
+            logger.error("Error during commissioning or connecting to node:", error);
         }
+        // finally {
+        //     //await matterServer.close(); // Comment out when subscribes are used, else the connection will be closed
+        //     setTimeout(() => process.exit(0), 1000000);
+        // }
     }
 }
 
