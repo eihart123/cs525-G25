@@ -365,6 +365,10 @@ export class InteractionClient {
             });
         }, executeQueued);
 
+        if (result === undefined) {
+            throw new UnexpectedDataError("Unexpected GOTCHA");
+        }
+
         if (dataVersionFilters !== undefined && dataVersionFilters.length > 0 && enrichCachedAttributeData) {
             this.#enrichCachedAttributeData(result.attributeReports, dataVersionFilters);
         }
@@ -659,11 +663,9 @@ export class InteractionClient {
             })}${knownDataVersion !== undefined ? ` (knownDataVersion=${knownDataVersion})` : ""}`,
         );
 
-        const {
-            subscribeResponse: { subscriptionId, maxInterval },
-            report,
-            maximumPeerResponseTime,
-        } = await this.withMessenger<{
+
+        
+        const res = await this.withMessenger<{
             subscribeResponse: TypeFromSchema<typeof TlvSubscribeResponse>;
             report: DataReport;
             maximumPeerResponseTime: number;
@@ -686,6 +688,14 @@ export class InteractionClient {
                 maximumPeerResponseTime: messenger.calculateMaximumPeerResponseTime(),
             };
         }, executeQueued);
+        if (res === undefined) {
+            throw new UnexpectedDataError("Catching");
+        }
+        const {
+            subscribeResponse: { subscriptionId, maxInterval },
+            report,
+            maximumPeerResponseTime,
+        } = res;
 
         const subscriptionListener = async (dataReport: DataReport) => {
             updateReceived?.();
@@ -761,11 +771,8 @@ export class InteractionClient {
 
         logger.debug(`Sending subscribe request for event: ${resolveEventName({ endpointId, clusterId, eventId })}`);
 
-        const {
-            report,
-            subscribeResponse: { subscriptionId, maxInterval },
-            maximumPeerResponseTime,
-        } = await this.withMessenger<{
+
+        const res = await this.withMessenger<{
             subscribeResponse: TypeFromSchema<typeof TlvSubscribeResponse>;
             report: DataReport;
             maximumPeerResponseTime: number;
@@ -785,6 +792,14 @@ export class InteractionClient {
                 maximumPeerResponseTime: messenger.calculateMaximumPeerResponseTime(),
             };
         }, executeQueued);
+        if (res === undefined) {
+            throw new UnexpectedDataError("Catching");
+        }
+        const {
+            report,
+            subscribeResponse: { subscriptionId, maxInterval },
+            maximumPeerResponseTime,
+        } = res;
 
         const subscriptionListener = (dataReport: DataReport) => {
             updateReceived?.();
@@ -921,11 +936,8 @@ export class InteractionClient {
             );
         }
 
-        const {
-            report,
-            subscribeResponse: { subscriptionId, maxInterval },
-            maximumPeerResponseTime,
-        } = await this.withMessenger<{
+
+        const res = await this.withMessenger<{
             subscribeResponse: TypeFromSchema<typeof TlvSubscribeResponse>;
             report: DataReport;
             maximumPeerResponseTime: number;
@@ -950,6 +962,15 @@ export class InteractionClient {
                 maximumPeerResponseTime: messenger.calculateMaximumPeerResponseTime(),
             };
         }, executeQueued);
+        if (res === undefined) {
+            throw new UnexpectedDataError("Unexpected GOTCHA AGIAN");
+        }
+
+        const {
+            report,
+            subscribeResponse: { subscriptionId, maxInterval },
+            maximumPeerResponseTime,
+        } = res;
 
         logger.info(`Subscription successfully initialized with ID ${subscriptionId} and maxInterval ${maxInterval}s.`);
 
@@ -1120,6 +1141,10 @@ export class InteractionClient {
             }
             return response;
         }, executeQueued);
+        if (invokeResponse === undefined) {
+            throw new UnexpectedDataError('RSGINRGSIEGSRN')
+        }
+        
 
         const { invokeResponses } = invokeResponse;
         if (invokeResponses.length === 0) {
@@ -1249,8 +1274,8 @@ export class InteractionClient {
             }
             result = await invoke(messenger);
         } catch (e) {
-            console.error("WE GOTCHA NOW")
-            throw e
+            console.error(`WE GOTCHA NOW: ${e}`)
+            return undefined;
         } finally {
             // No need to wait for closing and final ack message here, for us all is done
             messenger.close().catch(error => logger.info(`Error closing messenger: ${error}`));
