@@ -25,7 +25,6 @@ const logger = Logger.get("Controller");
 const numDevices = 20; // Number of devices to commission
 
 const environment = Environment.default;
-Logger.level = "debug";
 
 if (environment.vars.get("ble")) {
     // Initialize Ble
@@ -189,7 +188,7 @@ class ControllerNode {
               try {
                 const result = commissioningController.commissionNode(options)
                 
-                // logger.info(`Commissioning done successfully for node ${result}`);
+                logger.info(`Commissioning done successfully for node ${result}`);
                 return result;
               } catch (error) {
                 const newError = new Error(`Commissioning failed for node ${options}: ${error}`)
