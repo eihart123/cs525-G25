@@ -282,11 +282,14 @@ def start_root_controller(
         #     if items[0]
         #         break
         # wait until we have (most) of the endnodes
+        update_status(server, "Waiting for endnodes")
         while True:
             items = message_queue.snapshot()
-            if len(items) >= 18:
+            if len(items) >= 19:
                 break
             sleep(1)
+        update_status(server, "Starting...")
+        sleep(5)
 
     else:
         while True:
@@ -411,15 +414,16 @@ def startup_endnodes(
 
     # server_num 2 should be the first end node
     if not with_vmb:
-        update_status(server, f"Waiting for node {server_num - 1} to start")
-        while True:
-            items = message_queue.snapshot()
-            if len(items) == 1:
-                # If the previous finished, kick off ours
-                if items[0] == server_num - 1:
-                    _ = message_queue.get()
-                    break
-            sleep(1)
+        pass
+        # update_status(server, f"Waiting for node {server_num - 1} to start")
+        # while True:
+        #     items = message_queue.snapshot()
+        #     if len(items) == 1:
+        #         # If the previous finished, kick off ours
+        #         if items[0] == server_num - 1:
+        #             _ = message_queue.get()
+        #             break
+        #     sleep(1)
 
     update_status(server, "Starting tcpdump")
     dir = "cs525" if with_vmb else "cs525-baseline"

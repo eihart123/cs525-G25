@@ -185,12 +185,18 @@ class ControllerNode {
           for (let i = 0; i < myList.length; i += 20) {
             const batch = myList.slice(i, i + 20);
             logger.info(`Commissioning batch ${Math.floor(i / 20) + 1} of ${Math.ceil(myList.length / 20)}`);
-            const batchPromises = batch.map(options => commissioningController.commissionNode(options)
-              .then(result => {
-                logger.info(`Commissioning done successfully for node ${result}`);
-                return result;
-              })
-            );
+            const batchPromises = batch.map(options => {
+              try {
+                commissioningController.commissionNode(options)
+                .then(result => {
+                  logger.info(`Commissioning done successfully for node ${result}`);
+                  return result;
+                })
+              } catch (error) {
+                logger.error(`Commissioning failed for node ${options}: ${error}`);
+                return Promise.reject(error); // Reject the promise to handle errors
+              }
+            });
             allPromises.push(...batchPromises);
             await new Promise(resolve => setTimeout(resolve, 5000 + 1000)); // Wait for 5 seconds before commissioning the next batch
           }
