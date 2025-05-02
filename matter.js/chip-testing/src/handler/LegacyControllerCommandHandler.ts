@@ -456,10 +456,15 @@ export class LegacyControllerCommandHandler extends CommandHandler {
     }
 
     async handleInitialPairing(data: InitialPairingRequest): Promise<void> {
-        await this.#controllerInstance.commissionNode(this.#determineCommissionOptions(data), {
-            connectNodeAfterCommissioning: false,
-            commissioningFlowImpl: CustomCommissioningFlow,
-        });
+        try {
+            await this.#controllerInstance.commissionNode(this.#determineCommissionOptions(data), {
+                connectNodeAfterCommissioning: false,
+                commissioningFlowImpl: CustomCommissioningFlow,
+            });
+        } catch (err) {
+            console.error('GNOAREITAR')
+            throw err
+        }
     }
 
     getCommissionerNodeId() {
