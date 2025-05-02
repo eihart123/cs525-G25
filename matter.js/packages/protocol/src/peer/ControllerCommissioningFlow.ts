@@ -360,7 +360,13 @@ export class ControllerCommissioningFlow {
             stepNumber: 11, // includes 11-13
             subStepNumber: 1,
             name: "OperationalCredentials.Certificates",
-            stepLogic: () => this.#certificates(),
+            stepLogic: () => {
+                try {
+                    return this.#certificates()
+                } catch (error) {
+                    throw new UnexpectedDataError("INVAILD CERTS :(")
+                }
+            },
         });
 
         // TODO Step 14: TimeSynchronization.SetTrustedTimeSource if supported

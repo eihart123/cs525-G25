@@ -275,12 +275,12 @@ def start_root_controller(
 
     # Use this like a semaphore: block until we have all the endnodes AND level 1 vmbs
     if not not not with_vmb:  # :troll:
-        got = 0
-        while True:
-            _ = message_queue.get(timeout=None)
-            got += 1
-            if got >= len(SERVERS) - 1:
-                break
+        pass
+        # while True:
+        #     items = message_queue.snapshot()
+        #     got += 1
+        #     if items[0]
+        #         break
 
     else:
         while True:
@@ -328,8 +328,10 @@ def start_root_controller(
     # update_status(server, "Waiting plz")
     # sleep(20)
 
-    # server_num = int(server.split(".")[0][-2:])
-    # message_queue.put(server_num)
+    server_num = int(server.split(".")[0][-2:])
+    if not with_vmb:
+        message_queue.put(server_num)
+
     update_status(server, "Online")
 
 
@@ -397,7 +399,21 @@ def startup_endnodes(
     # message_queue.get()
     server_num = int(server.split(".")[0][-2:])
 
+    with_vmb_sleep = [10, 10]
+    without_vmb_sleep = [0, 5]
+    sleep_time = with_vmb_sleep if with_vmb else without_vmb_sleep
+
     # server_num 2 should be the first end node
+    if not with_vmb:
+        update_status(server, f"Waiting for node {server_num - 1} to start")
+        while True:
+            items = message_queue.snapshot()
+            if len(items) == 1:
+                # If the previous finished, kick off ours
+                if items[0] == server_num - 1:
+                    _ = message_queue.get()
+                    break
+            sleep(1)
 
     update_status(server, "Starting tcpdump")
     dir = "cs525" if with_vmb else "cs525-baseline"
@@ -437,13 +453,15 @@ def startup_endnodes(
             update_status(server, f"Failed to start {script}")
             return
         update_status(server, "Waiting some time so that it can start")
-        sleep(10)
+        sleep(sleep_time[0])
 
-    update_status(server, "Online")
+    update_status(server, "Waiting")
     # for giggles
-    sleep(10)
+    sleep(sleep_time[1])
+    update_status(server, "Online")
     # message_queue.put(server_num)
-    message_queue.put(server)
+    if not with_vmb:
+        message_queue.put(server_num)
 
 
 def install_config(conn: Connection, server: str):

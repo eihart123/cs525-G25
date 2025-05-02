@@ -188,7 +188,7 @@ class ControllerNode {
               })
             );
             allPromises.push(...batchPromises);
-            await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for 5 seconds before commissioning the next batch
+            await new Promise(resolve => setTimeout(resolve, 5000 + 3000)); // Wait for 5 seconds before commissioning the next batch
           }
           await Promise.all(allPromises);
           const endTime = Date.now();
