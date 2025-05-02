@@ -166,7 +166,8 @@ class InteractionMessenger {
         try {
             this.throwIfErrorStatusMessage(message, expectedMessageInfo);
         } catch (e: any) {
-            throw new UnexpectedDataError(`Rethrowing error: "${e.message}"`, )
+            console.debug(`Error while processing message: ${e.message}`);
+            // throw new UnexpectedDataError(`Rethrowing error: "${e.message}"`, )
         }
 
         if (expectedMessageType !== undefined && messageType !== expectedMessageType) {

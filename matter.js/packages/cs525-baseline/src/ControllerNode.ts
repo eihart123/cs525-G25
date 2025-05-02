@@ -176,6 +176,10 @@ class ControllerNode {
           // Measure commissioning time
           // Commission the node using the options
           const startTime = Date.now();
+
+          // delay startup
+          await new Promise(resolve => setTimeout(resolve, 2000));
+
           // start commissioning each node in batches of 20 every 5 seconds
           const allPromises = [];
           for (let i = 0; i < myList.length; i += 20) {
