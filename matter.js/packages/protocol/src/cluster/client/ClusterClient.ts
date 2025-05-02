@@ -308,15 +308,22 @@ export function ClusterClient<const T extends ClusterType>(
             } = {},
         ) => {
             const { asTimedRequest, timedRequestTimeoutMs, useExtendedFailSafeMessageResponseTimeout } = options;
-            return interactionClient.invoke<Command<RequestT, ResponseT, any>>({
-                endpointId,
-                clusterId,
-                command: commandDef[commandName],
-                request,
-                asTimedRequest,
-                timedRequestTimeoutMs,
-                useExtendedFailSafeMessageResponseTimeout,
-            });
+            try {
+
+                const res = interactionClient.invoke<Command<RequestT, ResponseT, any>>({
+                    endpointId,
+                    clusterId,
+                    command: commandDef[commandName],
+                    request,
+                    asTimedRequest,
+                    timedRequestTimeoutMs,
+                    useExtendedFailSafeMessageResponseTimeout,
+                });
+                return res
+            } catch (error: any) {
+                console.error('GOTCHA')
+                throw new Error(`bad ${error.message}`)
+            }
         };
         commands[requestId as unknown as keyof T["commands"]] = commands[commandName as keyof T["commands"]];
         result[commandName] = result.commands[commandName];

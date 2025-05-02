@@ -1631,7 +1631,12 @@ export class InteractionServer implements ProtocolHandler, InteractionRecipient 
         endpoint: EndpointInterface,
         _receivedWithinTimedInteraction = false,
     ) {
-        return command.invoke(exchange.session, commandFields, message, endpoint);
+        try {
+            return command.invoke(exchange.session, commandFields, message, endpoint);
+        } catch (error: any) {
+            console.error('GOTCHA2')
+            throw new Error(`bad ${error.message}`)
+        }
     }
 
     handleTimedRequest(exchange: MessageExchange, { timeout, interactionModelRevision }: TimedRequest) {
