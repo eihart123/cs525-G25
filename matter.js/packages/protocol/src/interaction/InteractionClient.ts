@@ -1142,7 +1142,8 @@ export class InteractionClient {
             return response;
         }, executeQueued);
         if (invokeResponse === undefined) {
-            throw new MatterFlowError('We dont handle this right...')
+            return undefined as ResponseType<C>;
+            // throw new MatterFlowError('We dont handle this right...')
         }
         
 
