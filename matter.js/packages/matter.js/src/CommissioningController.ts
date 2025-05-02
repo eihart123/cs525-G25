@@ -294,21 +294,24 @@ export class CommissioningController {
 
         const { connectNodeAfterCommissioning = true, commissioningFlowImpl } = commissionOptions ?? {};
 
-        const nodeId = await controller.commission(nodeOptions, { commissioningFlowImpl });
-
-        if (connectNodeAfterCommissioning) {
-            const node = await this.connectNode(nodeId, {
-                ...nodeOptions,
-                autoSubscribe: nodeOptions.autoSubscribe ?? this.#options.autoSubscribe,
-                subscribeMinIntervalFloorSeconds:
-                    nodeOptions.subscribeMinIntervalFloorSeconds ?? this.#options.subscribeMinIntervalFloorSeconds,
-                subscribeMaxIntervalCeilingSeconds:
-                    nodeOptions.subscribeMaxIntervalCeilingSeconds ?? this.#options.subscribeMaxIntervalCeilingSeconds,
-            });
-            await node.events.initialized;
+        try {
+            const nodeId = await controller.commission(nodeOptions, { commissioningFlowImpl });
+            if (connectNodeAfterCommissioning) {
+                const node = await this.connectNode(nodeId, {
+                    ...nodeOptions,
+                    autoSubscribe: nodeOptions.autoSubscribe ?? this.#options.autoSubscribe,
+                    subscribeMinIntervalFloorSeconds:
+                        nodeOptions.subscribeMinIntervalFloorSeconds ?? this.#options.subscribeMinIntervalFloorSeconds,
+                    subscribeMaxIntervalCeilingSeconds:
+                        nodeOptions.subscribeMaxIntervalCeilingSeconds ?? this.#options.subscribeMaxIntervalCeilingSeconds,
+                });
+                await node.events.initialized;
+            }
+    
+            return nodeId;
+        } catch (err) {
+            return undefined as unknown as NodeId;
         }
-
-        return nodeId;
     }
 
     connectPaseChannel(nodeOptions: NodeCommissioningOptions) {
