@@ -469,9 +469,9 @@ def startup_endnodes(
     # for giggles
     sleep(sleep_time[1])
     update_status(server, "Online")
-    # message_queue.put(server_num)
-    if not with_vmb:
-        message_queue.put(server_num)
+    message_queue.put(server_num)
+    # if not with_vmb:
+    #     message_queue.put(server_num)
 
 
 def install_config(conn: Connection, server: str):
