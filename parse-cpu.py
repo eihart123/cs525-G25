@@ -55,27 +55,27 @@ if __name__ == "__main__":
     timestamps_vmb = [x - timestamps_vmb[0] for x in timestamps_vmb]
     timestamps_baseline = [x - timestamps_baseline[0] for x in timestamps_baseline]
 
-    # Trim all data after the first 300 seconds
-    timestamps_vmb = timestamps_vmb[:300]
-    cpu_vmb = cpu_vmb[:300]
-    average_vmb = average_vmb[:300]
-    timestamps_baseline = timestamps_baseline[:300]
-    cpu_baseline = cpu_baseline[:300]
-    average_baseline = average_baseline[:300]
+    # Trim all data after the first 250 seconds
+    timestamps_vmb = timestamps_vmb[:240]
+    cpu_vmb = cpu_vmb[:240]
+    average_vmb = average_vmb[:240]
+    timestamps_baseline = timestamps_baseline[:240]
+    cpu_baseline = cpu_baseline[:240]
+    average_baseline = average_baseline[:240]
     
 
     plt.figure(figsize=(10, 5))
-    plt.plot(timestamps_vmb, cpu_vmb, label="CPU Usage VMB", color='lightblue', linestyle=':', marker='*')
-    plt.plot(timestamps_baseline, cpu_baseline, label="CPU Usage Baseline", color='lightgray', linestyle=':', marker='x')
-    plt.plot(timestamps_vmb, average_vmb, label="Rolling Average VMB (60sec)", color='blue')
-    plt.plot(timestamps_baseline, average_baseline, label="Rolling Average Baseline (60sec)", color='gray', linestyle=':')
+    plt.plot(timestamps_vmb, cpu_vmb, label="VMB", color='lightblue', linestyle=':', marker='*')
+    plt.plot(timestamps_baseline, cpu_baseline, label="Baseline", color='lightgray', linestyle=':', marker='x')
+    plt.plot(timestamps_vmb, average_vmb, label="VMB Average (60sec)", color='blue', linestyle='--')
+    plt.plot(timestamps_baseline, average_baseline, label="Baseline Average (60sec)", color='orangered')
     plt.xlabel("Seconds since start")
     plt.ylabel("Usage")
     plt.yscale('log')
     # Show rolling average
     # plt.plot(timestamps, average, label="Rolling Average (60sec)", color='orange')
 
-    plt.title("CPU and Memory Usage Over Time")
+    plt.title("CPU usage over time (first 4 minutes)")
     plt.legend()
     plt.grid()
     plt.savefig("cpu_usage.png")
