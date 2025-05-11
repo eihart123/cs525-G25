@@ -65,17 +65,18 @@ if __name__ == "__main__":
     
 
     plt.figure(figsize=(10, 5))
+    plt.plot(timestamps_baseline, cpu_baseline, label="Baseline", color='sandybrown', linestyle=':', marker='x')
     plt.plot(timestamps_vmb, cpu_vmb, label="VMB", color='lightblue', linestyle=':', marker='*')
-    plt.plot(timestamps_baseline, cpu_baseline, label="Baseline", color='lightgray', linestyle=':', marker='x')
-    plt.plot(timestamps_vmb, average_vmb, label="VMB Average (60sec)", color='blue', linestyle='--')
     plt.plot(timestamps_baseline, average_baseline, label="Baseline Average (60sec)", color='orangered')
-    plt.xlabel("Seconds since start")
-    plt.ylabel("Usage")
+    plt.plot(timestamps_vmb, average_vmb, label="VMB Average (60sec)", color='blue', linestyle='--')
+    plt.legend(bbox_to_anchor=(1.4, 1.05))
+    plt.xlabel("Time (s)")
+    plt.ylabel("CPU Usage (%)")
     plt.yscale('log')
     # Show rolling average
     # plt.plot(timestamps, average, label="Rolling Average (60sec)", color='orange')
 
-    plt.title("CPU usage over time (first 4 minutes)")
+    plt.title("CPU Usage Over Time (Baseline vs VMB)")
     plt.legend()
     plt.grid()
     plt.savefig("cpu_usage.png")
